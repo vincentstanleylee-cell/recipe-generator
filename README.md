@@ -2,7 +2,7 @@
 
 A simple, offline-capable recipe generator in **Cantonese and English** (Cantonese first, English beneath or beside it). It turns the ingredients and seasonings you enter into a practical gram-based recipe using local rules—no account, API key, package installation, or internet connection is required.
 
-Live site: https://tonight-recipe-generator.onrender.com
+Live site: https://cantonese-recipe-kitchen-2026.aware-coati-5038.chatgpt.site
 
 ## Start the app
 
