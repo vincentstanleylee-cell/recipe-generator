@@ -53,13 +53,13 @@
         <form id="recipe-form" novalidate>
           <label class="field field-wide" for="ingredients">
             <span><span class="zh">主要食材</span><span class="en inline" lang="en">Main ingredients</span> <strong aria-hidden="true">*</strong></span>
-            <textarea id="ingredients" rows="3" placeholder="例如：雞腿肉、白飯、菜心 · e.g. chicken thigh, rice, choy sum" required>雞腿肉、白飯、菜心</textarea>
+            <textarea id="ingredients" rows="3" placeholder="例如：雞腿肉、白飯、菜心 · e.g. chicken thigh, rice, choy sum" required>牛肉、菜心</textarea>
             <small><span class="zh">用逗號或換行分隔。可選填克數，例如「雞肉 300g」。</span><span class="en" lang="en">Separate with commas or new lines. You can add grams, e.g. "chicken 300g".</span></small>
           </label>
 
           <label class="field field-wide" for="seasonings">
             <span><span class="zh">已有調味料</span><span class="en inline" lang="en">Seasonings you have</span></span>
-            <input id="seasonings" type="text" value="豉油、薑、蔥" placeholder="例如：鹽、豉油、蒜、黑椒 · e.g. salt, soy sauce, garlic, black pepper">
+            <input id="seasonings" type="text" value="蒜蓉、生抽、蠔油、紹興酒、生粉、花生油" placeholder="例如：鹽、豉油、蒜、黑椒 · e.g. salt, soy sauce, garlic, black pepper">
             <small><span class="zh">我哋只會加少量配合口味嘅建議調味。</span><span class="en" lang="en">We only add a small amount of suggested seasoning to match the flavor.</span></small>
           </label>
 
@@ -145,6 +145,17 @@
                 <span aria-hidden="true"></span>
               </span>
             </label>
+
+            <label class="switch-card switch-card-wide" for="strict-pantry">
+              <span class="switch-copy">
+                <span class="switch-icon" aria-hidden="true">🧺</span>
+                <span><strong><span class="zh">材料要齊全</span><span class="en inline" lang="en">Everything listed</span></strong><small><span class="zh">只配對你列晒所有材料同調味嘅食譜庫食譜，連水、油、鹽都要列出。</span><span class="en" lang="en">Only match library recipes where you listed every ingredient and seasoning, even water, oil and salt.</span></small></span>
+              </span>
+              <span class="switch-control">
+                <input id="strict-pantry" type="checkbox">
+                <span aria-hidden="true"></span>
+              </span>
+            </label>
           </div>
 
           <div class="budget-controls" id="budget-controls">
@@ -168,7 +179,7 @@
           <p class="form-error" id="form-error" role="alert" hidden></p>
           <button class="primary-button" type="submit">
             <span aria-hidden="true">✦</span>
-            <span class="zh">生成食譜</span><span class="en inline" lang="en">Generate recipe</span>
+            <span class="zh">配對或生成食譜</span><span class="en inline" lang="en">Match or generate recipe</span>
           </button>
         </form>
       </section>
@@ -203,6 +214,12 @@
             <span aria-hidden="true">⏱</span>
             <p></p>
           </div>
+
+          <section class="match-options" id="match-options" aria-labelledby="match-options-title" hidden>
+            <h3 id="match-options-title"><span class="zh">其他選擇</span><span class="en" lang="en">Other options</span></h3>
+            <p class="match-options-help"><span class="zh">撳一下就轉用嗰份食譜。</span><span class="en" lang="en">Tap one to switch to that recipe.</span></p>
+            <ul class="match-option-list" id="match-option-list"></ul>
+          </section>
 
           <section class="recipe-section" aria-labelledby="ingredients-title">
             <div class="recipe-section-heading">

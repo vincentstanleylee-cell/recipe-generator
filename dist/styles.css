@@ -1948,3 +1948,115 @@ footer .en,
     font-size: 25px;
   }
 }
+
+/* Matching the form to the library ------------------------------------------------------------- */
+
+.mode-grid .switch-card-wide {
+  grid-column: 1 / -1;
+}
+
+.match-options {
+  padding: 18px 25px;
+  border-bottom: 1px solid var(--line);
+}
+
+.match-options h3 {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.2;
+}
+
+.match-options h3 .en {
+  margin-top: 2px;
+  font-size: 12px;
+}
+
+.match-options-help {
+  margin: 6px 0 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.match-option-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.match-option {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  padding: 11px 13px;
+  border: 1px solid var(--line);
+  color: var(--ink);
+  background: #fbfcf9;
+  border-radius: var(--radius-md);
+  text-align: left;
+  transition: border-color 150ms ease, background 150ms ease, box-shadow 150ms ease;
+}
+
+.match-option:hover {
+  border-color: #9eb9ad;
+}
+
+.match-option[aria-pressed="true"] {
+  --en-color: var(--muted-strong);
+  border-color: var(--green-700);
+  background: var(--green-100);
+  box-shadow: inset 0 0 0 1px var(--green-700);
+}
+
+.match-option-title {
+  font-size: 14px;
+  font-weight: 780;
+  line-height: 1.3;
+}
+
+.match-option-meta {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.match-option[aria-pressed="true"] .match-option-meta {
+  color: var(--muted-strong);
+}
+
+.match-option-flag {
+  justify-self: start;
+  padding: 2px 9px;
+  color: var(--green-800);
+  background: #fff;
+  border: 1px solid var(--green-700);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+@media (max-width: 720px) {
+  .match-options {
+    padding: 16px 17px;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .match-option {
+    background: #1a2d27;
+    border-color: #3b594f;
+  }
+
+  .match-option[aria-pressed="true"] {
+    background: var(--green-100);
+    border-color: #7fd0b0;
+    box-shadow: inset 0 0 0 1px #7fd0b0;
+  }
+
+  .match-option-flag {
+    color: #d9e9e2;
+    background: #1d302a;
+    border-color: #7fd0b0;
+  }
+}

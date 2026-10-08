@@ -32,6 +32,9 @@
     budgetControls: $('#budget-controls'),
     currency: $('#currency'),
     budgetLimit: $('#budget-limit'),
+    strictPantry: $('#strict-pantry'),
+    matchOptions: $('#match-options'),
+    matchOptionList: $('#match-option-list'),
     formError: $('#form-error'),
     loadExample: $('#load-example'),
     result: $('#recipe-result'),
@@ -93,9 +96,11 @@
     toast: $('#toast')
   };
 
-  let selectedFlavor = 'ginger-scallion';
+  let selectedFlavor = 'soy-savory';
   let selectedTools = new Set(['wok', 'rice-cooker']);
   let currentRecipe = null;
+  // The recipes found for the last form submission: the best library matches plus the generic recipe.
+  let currentOptions = null;
   let currentStep = 0;
   let uploadedPhotoUrl = '';
   let toastTimer = null;
@@ -251,6 +256,7 @@
       servings: getServings(),
       timeLimit: Number(elements.timeLimit.value),
       dietaryNeeds: elements.dietaryNeeds.value,
+      strictPantry: elements.strictPantry.checked,
       budgetEnabled: elements.budgetMode.checked,
       visualEnabled: elements.visualMode.checked,
       currency: elements.currency.value,
@@ -291,6 +297,7 @@
     elements.customServingWrap.hidden = elements.servings.value !== 'custom';
     if ([20, 40, 60].includes(Number(draft.timeLimit))) elements.timeLimit.value = String(draft.timeLimit);
     if (typeof draft.dietaryNeeds === 'string') elements.dietaryNeeds.value = draft.dietaryNeeds;
+    elements.strictPantry.checked = Boolean(draft.strictPantry);
     elements.budgetMode.checked = draft.budgetEnabled !== false;
     elements.visualMode.checked = draft.visualEnabled !== false;
     if (typeof draft.currency === 'string' && Object.prototype.hasOwnProperty.call(data.currencies, draft.currency)) elements.currency.value = draft.currency;
@@ -488,15 +495,24 @@
       const incomplete = recipe.importedMeta.incompleteEnglishMethod
         ? [' 英文步驟比廣東話版本少；畫面只顯示來源有提供嘅內容。', ' The English method has fewer steps than the Cantonese version; only supplied content is shown.']
         : ['', ''];
+      const matched = recipe.importedMeta.matchNotice
+        ? [`${recipe.importedMeta.matchNotice[0]} `, `${recipe.importedMeta.matchNotice[1]} `]
+        : ['', ''];
       setBilingual(elements.sourceNotice.querySelector('p'), [
-        `${recipe.importedMeta.notice[0]}${incomplete[0]}`,
-        `${recipe.importedMeta.notice[1]}${incomplete[1]}`
+        `${matched[0]}${recipe.importedMeta.notice[0]}${incomplete[0]}`,
+        `${matched[1]}${recipe.importedMeta.notice[1]}${incomplete[1]}`
       ]);
       elements.sourceNotice.hidden = false;
     } else {
       setBilingual(elements.photoLabel, ['成品圖片 · 擺盤示意', 'Finished dish · plating example']);
       setBilingual(elements.measurementLabel, [ui.allInGrams[0], ui.allInGrams[1]], true);
-      elements.sourceNotice.hidden = true;
+      // A generic recipe made for a form submission says why it is generic.
+      if (recipe.genericNotice) {
+        setBilingual(elements.sourceNotice.querySelector('p'), recipe.genericNotice);
+        elements.sourceNotice.hidden = false;
+      } else {
+        elements.sourceNotice.hidden = true;
+      }
     }
     const servings = ui.servings(recipe.servings);
     const minutes = ui.aboutMinutes(recipe.estimatedMinutes);
@@ -522,13 +538,106 @@
     syncModes();
   }
 
+  // Matching the form to the library -------------------------------------------------------------
+
+  const MAX_LIBRARY_OPTIONS = 4;
+
+  // Library recipes keep their own supplied steps; the generic recipe is built from every typed item.
+  function recipeForOption(config, option) {
+    if (option.kind === 'library') {
+      return library.toAppRecipe(option.candidate.record, config.servings, { config, match: option.candidate });
+    }
+    const recipe = engine.generateRecipe(config);
+    recipe.genericNotice = ui.genericChosenNotice;
+    return recipe;
+  }
+
+  // Why the generic recipe is shown, plus what to change to get a library recipe.
+  function fallbackNotice(config) {
+    const hints = library.explainNoMatch(libraryData.recipes, config);
+    return [
+      [ui.fallbackNotice[0], ...hints.map((hint) => hint[0])].join(' '),
+      [ui.fallbackNotice[1], ...hints.map((hint) => hint[1])].join(' ')
+    ];
+  }
+
+  function renderOptions() {
+    elements.matchOptionList.replaceChildren();
+    if (!currentOptions) {
+      elements.matchOptions.hidden = true;
+      return;
+    }
+    const mainCount = library.splitInput(currentOptions.config.ingredients).length;
+    currentOptions.items.forEach((option, index) => {
+      const active = index === currentOptions.active;
+      const item = document.createElement('li');
+      const button = createButton('match-option', '', {
+        'data-option': String(index),
+        'aria-pressed': String(active)
+      });
+      const title = document.createElement('span');
+      title.className = 'match-option-title';
+      const meta = document.createElement('span');
+      meta.className = 'match-option-meta';
+      if (option.kind === 'library') {
+        const record = option.candidate.record;
+        title.append(...bilingualNodes(record.title_zh_hant, record.title_en));
+        const uses = ui.optionUses(mainCount - option.candidate.unusedMain.length, mainCount);
+        const missing = ui.optionMissing(option.candidate.missing.length);
+        meta.append(...bilingualNodes(`${uses[0]} · ${missing[0]}`, `${uses[1]} · ${missing[1]}`));
+      } else {
+        title.append(...bilingualNodes(ui.optionGenericTitle[0], ui.optionGenericTitle[1]));
+        meta.append(...bilingualNodes(ui.optionGenericNote[0], ui.optionGenericNote[1]));
+      }
+      button.append(title, meta);
+      if (active) {
+        const flag = document.createElement('span');
+        flag.className = 'match-option-flag';
+        flag.append(...bilingualNodes(ui.optionShowing[0], ui.optionShowing[1], true));
+        button.append(flag);
+      }
+      item.append(button);
+      elements.matchOptionList.append(item);
+    });
+    elements.matchOptions.hidden = false;
+  }
+
+  function showOption(index) {
+    if (!currentOptions || index === currentOptions.active || !currentOptions.items[index]) return;
+    currentOptions.active = index;
+    renderRecipe(recipeForOption(currentOptions.config, currentOptions.items[index]));
+    renderOptions();
+    elements.result.scrollTop = 0;
+    if (window.matchMedia('(max-width: 1120px)').matches) {
+      elements.result.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    showToast(ui.optionSwitched);
+  }
+
   function generate(options) {
     const shouldScroll = Boolean(options && options.scroll);
     try {
-      const recipe = engine.generateRecipe(getFormConfig());
+      const config = getFormConfig();
+      // Without a main ingredient the generator below reports the bilingual "enter an ingredient" error.
+      const ranked = library.splitInput(config.ingredients).length
+        ? library.rankRecipes(libraryData.recipes, config)
+        : [];
+      let recipe;
+      if (ranked.length) {
+        const items = ranked.slice(0, MAX_LIBRARY_OPTIONS).map((candidate) => ({ kind: 'library', candidate }));
+        items.push({ kind: 'generic' });
+        currentOptions = { config, items, active: 0 };
+        recipe = recipeForOption(config, items[0]);
+      } else {
+        currentOptions = null;
+        recipe = engine.generateRecipe(config);
+        recipe.genericNotice = fallbackNotice(config);
+      }
       elements.formError.hidden = true;
       saveDraft();
       renderRecipe(recipe);
+      renderOptions();
+      if (shouldScroll && ranked.length) showToast(ui.libraryRecipeMatched);
       if (shouldScroll && window.matchMedia('(max-width: 1120px)').matches) {
         elements.result.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
@@ -663,7 +772,9 @@
       elements.customServing.value = String(servings);
     }
     elements.customServingWrap.hidden = elements.servings.value !== 'custom';
+    currentOptions = null;
     renderRecipe(recipe);
+    renderOptions();
     closeLibraryDialog();
     elements.result.scrollIntoView({ behavior: 'smooth', block: 'start' });
     showToast(['已開啟匯入食譜', 'Imported recipe opened']);
@@ -771,6 +882,7 @@
     elements.customServingWrap.hidden = elements.servings.value !== 'custom';
     elements.timeLimit.value = [20, 40, 60].includes(Number(recipe.timeLimit)) ? String(recipe.timeLimit) : '40';
     elements.dietaryNeeds.value = recipe.dietaryNeeds || '';
+    elements.strictPantry.checked = Boolean(source.strictPantry);
     elements.budgetMode.checked = recipe.budgetEnabled !== false;
     elements.visualMode.checked = recipe.visualEnabled !== false;
     if (recipe.budget && Object.prototype.hasOwnProperty.call(data.currencies, recipe.budget.currency)) elements.currency.value = recipe.budget.currency;
@@ -861,6 +973,11 @@
 
   elements.saveRecipe.addEventListener('click', () => upsertCurrentRecipe());
 
+  elements.matchOptionList.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-option]');
+    if (button) showOption(Number(button.dataset.option));
+  });
+
   elements.openLibrary.addEventListener('click', openLibraryDialog);
   elements.closeLibrary.addEventListener('click', closeLibraryDialog);
   elements.libraryDialog.addEventListener('click', (event) => {
@@ -900,7 +1017,9 @@
     if (!recipe) return;
     if (button.dataset.action === 'load') {
       applyRecipeToForm(recipe);
+      currentOptions = null;
       renderRecipe(recipe);
+      renderOptions();
       closeSavedDialog();
       elements.result.scrollIntoView({ behavior: 'smooth', block: 'start' });
       showToast(ui.savedOpened);
@@ -939,14 +1058,15 @@
   });
 
   elements.loadExample.addEventListener('click', () => {
-    elements.ingredients.value = '雞腿肉、白飯、菜心';
-    elements.seasonings.value = '豉油、薑、蔥';
+    elements.ingredients.value = '牛肉、菜心';
+    elements.seasonings.value = '蒜蓉、生抽、蠔油、紹興酒、生粉、花生油';
     elements.cuisine.value = 'cantonese';
     elements.timeLimit.value = '40';
     elements.servings.value = '2';
     elements.customServingWrap.hidden = true;
     elements.dietaryNeeds.value = '';
-    selectedFlavor = 'ginger-scallion';
+    elements.strictPantry.checked = false;
+    selectedFlavor = 'soy-savory';
     selectedTools = new Set(['wok', 'rice-cooker']);
     elements.budgetMode.checked = true;
     elements.visualMode.checked = true;

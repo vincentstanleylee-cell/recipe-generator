@@ -41,6 +41,24 @@ function recipe(overrides = {}) {
   });
 }
 
+function matchConfig(overrides = {}) {
+  return {
+    ingredients: '廣東菜心 350g',
+    seasonings: '蒜蓉 25g、鹽 4g、白糖 2g、花生油 20ml、清水 20ml',
+    cuisine: 'cantonese',
+    flavor: 'garlic-herb',
+    tools: ['wok'],
+    servings: 2,
+    timeLimit: 20,
+    dietaryNeeds: '',
+    budgetEnabled: true,
+    visualEnabled: true,
+    currency: 'CAD',
+    budgetLimit: 15,
+    ...overrides
+  };
+}
+
 test('generates a complete Cantonese recipe', () => {
   const result = recipe();
   assert.match(result.title, /廣東/);
@@ -182,6 +200,57 @@ test('library search matches supplied Cantonese and English content', () => {
   assert.equal(library.search(libraryData.recipes, { query: 'RC-0001', includeDemos: true }).length, 1);
 });
 
+test('main-form matching selects a compatible source recipe from all supplied inputs', () => {
+  const config = matchConfig();
+  const match = library.matchRecipe(libraryData.recipes, config);
+  assert.ok(match);
+  assert.equal(match.record.id, 'RC-0179');
+  assert.equal(match.mainCoverage, 1);
+  assert.equal(match.seasoningCoverage, 1);
+  assert.deepEqual(match.missing, []);
+
+  const opened = library.toAppRecipe(match.record, 4, { config: { ...config, servings: 4 }, match });
+  assert.equal(opened.importedMeta.sourceId, 'RC-0179');
+  assert.equal(opened.steps[0].text, match.record.steps_zh_hant[0]);
+  assert.equal(opened.ingredients[0].quantity, match.record.ingredients[0].quantity * 2);
+  assert.match(opened.importedMeta.matchNotice[1], /every required item was listed/i);
+  assert.equal(opened.sourceInput.ingredients, config.ingredients);
+  assert.deepEqual(opened.selectedTools, ['wok']);
+});
+
+test('a partial library match clearly reports every unlisted requirement', () => {
+  const config = matchConfig({ ingredients: '菜心', seasonings: '' });
+  const match = library.matchRecipe(libraryData.recipes, config);
+  assert.ok(match);
+  assert.equal(match.record.id, 'RC-0179');
+  assert.equal(match.missingMain.length, 0);
+  assert.equal(match.missingSeasonings.length, 5);
+
+  const opened = library.toAppRecipe(match.record, 2, { config, match });
+  assert.match(opened.importedMeta.matchNotice[0], /蒜蓉/);
+  assert.match(opened.importedMeta.matchNotice[1], /minced garlic/);
+});
+
+test('main-form matching respects cuisine, tools and obvious dietary conflicts', () => {
+  assert.equal(library.matchRecipe(libraryData.recipes, matchConfig({ cuisine: 'japanese' })), null);
+  assert.equal(library.matchRecipe(libraryData.recipes, matchConfig({ tools: ['oven'] })), null);
+  const porkConfig = matchConfig({
+    ingredients: '梅頭豬肉',
+    seasonings: '海鮮醬、生抽、老抽、玫瑰露酒、蜜糖',
+    tools: ['oven'],
+    timeLimit: 300,
+    dietaryNeeds: '素食 vegetarian'
+  });
+  assert.equal(library.matchRecipe(libraryData.recipes, porkConfig), null);
+});
+
+test('main-form matching never promotes hidden demo recipes', () => {
+  const match = library.matchRecipe(libraryData.recipes, matchConfig());
+  assert.ok(match);
+  assert.equal(match.record._codex_import.production_visible, true);
+  assert.equal(match.record._codex_import.scope, 'cantonese_editorial');
+});
+
 test('opening an imported recipe scales g and ml without inventing missing data', () => {
   const source = libraryData.recipes.find((record) => record.id === 'RC-0101');
   const opened = library.toAppRecipe(source, 2, { createdAt: '2026-10-08T00:00:00.000Z' });
@@ -206,6 +275,7 @@ test('browser document is a complete HTML page', () => {
   assert.match(html, /<script src="recipe-library-data\.js"><\/script>/);
   assert.match(html, /<script src="recipe-library\.js"><\/script>/);
   assert.match(html, /<script src="app\.js"><\/script>/);
+  assert.match(fs.readFileSync(path.join(root, 'dist', 'app.js'), 'utf8'), /library\.rankRecipes\(libraryData\.recipes, config\)/);
 });
 
 test('HTML IDs are unique and app selectors exist', () => {
@@ -380,6 +450,215 @@ test('page text is bilingual: each English span follows a Cantonese span and is 
   });
   assert.match(html, /<title>[^<]*What's for dinner\?/);
   assert.match(html, /name="description" content="[^"]*Enter your ingredients/);
+});
+
+// Understanding what the user typed ----------------------------------------------------------------
+
+function requirement(zh, en, role = 'ingredient') {
+  return { name: zh, name_zh_hant: zh, name_en: en, role };
+}
+
+function pantryConfig(overrides = {}) {
+  return {
+    ingredients: '',
+    seasonings: '',
+    cuisine: 'cantonese',
+    flavor: 'ginger-scallion',
+    tools: ['wok', 'rice-cooker'],
+    servings: 2,
+    timeLimit: 40,
+    dietaryNeeds: '',
+    ...overrides
+  };
+}
+
+function ranked(overrides) {
+  return library.rankRecipes(libraryData.recipes, pantryConfig(overrides));
+}
+
+const visibleRecords = libraryData.recipes.filter((record) => record._codex_import.production_visible);
+
+test('a specific cut satisfies a generic request, but a different cut does not', () => {
+  const generic = requirement('嫩雞肉', 'tender chicken pieces');
+  assert.equal(library.pantryItemMatches('雞腿肉', generic), true);
+  assert.equal(library.pantryItemMatches('chicken thigh', generic), true);
+  assert.equal(library.pantryItemMatches('雞', requirement('無骨雞腿肉', 'boneless chicken thigh')), true);
+  assert.equal(library.pantryItemMatches('雞胸肉', requirement('無骨雞腿肉', 'boneless chicken thigh')), false);
+  assert.equal(library.pantryItemMatches('雞腿肉', requirement('全雞', 'whole chicken')), false);
+  assert.equal(library.pantryItemMatches('雞', requirement('雞爪', 'chicken feet')), false, 'plain chicken is not chicken feet');
+});
+
+test('look-alike words are never confused', () => {
+  assert.equal(library.pantryItemMatches('雞蛋', requirement('嫩雞肉', 'tender chicken pieces')), false);
+  assert.equal(library.pantryItemMatches('牛油果', requirement('牛肉片', 'beef slices')), false);
+  assert.equal(library.pantryItemMatches('油', requirement('蠔油', 'oyster sauce', 'seasoning')), false);
+  assert.equal(library.pantryItemMatches('oil', requirement('生抽', 'light soy sauce', 'seasoning')), false);
+  assert.equal(library.pantryItemMatches('sesame oil', requirement('花生油', 'peanut oil', 'seasoning')), false);
+  assert.equal(library.pantryItemMatches('蝦', requirement('大澳蝦醬', 'Tai O shrimp paste', 'seasoning')), false);
+  assert.equal(library.pantryItemMatches('魚', requirement('魚露', 'fish sauce', 'seasoning')), false);
+  assert.equal(library.pantryItemMatches('皮蛋', requirement('雞蛋', 'egg')), false);
+  assert.equal(library.pantryItemMatches('生抽', requirement('老抽', 'dark soy sauce', 'seasoning')), false);
+});
+
+test('everyday words in either language reach the library wording', () => {
+  assert.equal(library.pantryItemMatches('oil', requirement('花生油', 'peanut oil', 'seasoning')), true);
+  assert.equal(library.pantryItemMatches('油', requirement('菜籽油', 'canola oil', 'seasoning')), true);
+  assert.equal(library.pantryItemMatches('豉油', requirement('生抽', 'light soy sauce', 'seasoning')), true);
+  assert.equal(library.pantryItemMatches('soy sauce', requirement('蒸魚豉油', 'seasoned soy sauce', 'seasoning')), true);
+  assert.equal(library.pantryItemMatches('米酒', requirement('紹興酒', 'Shaoxing wine', 'seasoning')), true);
+  assert.equal(library.pantryItemMatches('tofu', requirement('板豆腐', 'firm tofu')), true);
+  assert.equal(library.pantryItemMatches('green onions', requirement('蔥花', 'chopped scallions', 'seasoning')), true);
+  assert.equal(library.pantryItemMatches('蔥', requirement('大蔥/紅蔥頭', 'scallions and shallots', 'seasoning')), true);
+  assert.equal(library.pantryItemMatches('冬菇', requirement('鮮香菇片', 'fresh shiitake sliced')), true);
+  assert.equal(library.pantryItemMatches('mushrooms', requirement('鮮草菇/白蘑菇', 'fresh mushrooms sliced')), true);
+  assert.equal(library.pantryItemMatches('rice', requirement('熟冷白飯', 'cold cooked rice')), true);
+  assert.equal(library.pantryItemMatches('noodles', requirement('全蛋幼生麵', 'thin egg noodles')), true);
+  assert.equal(library.pantryItemMatches('糖', requirement('冰糖', 'rock sugar', 'seasoning')), true);
+  assert.equal(library.pantryItemMatches('choy sum', requirement('鮮菜心/豆苗', 'choy sum or pea shoots')), true);
+});
+
+test('typed amounts, counts and notes are ignored when matching', () => {
+  assert.deepEqual(library.splitInput('雞腿肉 300g, 2 eggs、蒜(切片)、  3 cloves garlic ; 100 ml water'), ['雞腿肉', 'eggs', '蒜', 'garlic', 'water']);
+});
+
+test('every ingredient name in the visible recipes is understood by the food table', () => {
+  visibleRecords.forEach((record) => record.ingredients.forEach((item) => {
+    const concepts = new Set();
+    [item.name_zh_hant, item.name_en].forEach((text) => String(text).split(/\s*[/／]\s*|\s+or\s+|或/i).forEach((part) => {
+      library.conceptsOf(part, 'requirement').forEach((id) => concepts.add(id));
+    }));
+    assert.ok(concepts.size, `${record.id}: ${item.name_zh_hant} | ${item.name_en}`);
+  }));
+});
+
+test('every food-table name resolves to its own concept and names a known parent', () => {
+  const ids = new Set(library.foodConcepts.map((row) => row.id));
+  assert.equal(ids.size, library.foodConcepts.length, 'duplicate concept id');
+  library.foodConcepts.forEach((row) => {
+    if (row.parent) assert.ok(ids.has(row.parent), `${row.id} has unknown parent ${row.parent}`);
+    [...row.zh, ...row.en].forEach((name) => {
+      const pantryOnly = name.startsWith('~');
+      const clean = name.replace(/^[=~]+/, '');
+      assert.ok(library.conceptsOf(clean, pantryOnly ? 'pantry' : 'requirement').has(row.id), `${row.id}: "${name}"`);
+    });
+  });
+});
+
+test('the default Cantonese example finds a complete library recipe that uses everything typed', () => {
+  const [best] = ranked({ ingredients: '牛肉、菜心', seasonings: '蒜蓉、生抽、蠔油、紹興酒、生粉、花生油', flavor: 'soy-savory' });
+  assert.equal(best.record.id, 'RC-0158');
+  assert.deepEqual(best.missing, []);
+  assert.deepEqual(best.unusedInputs, []);
+  assert.equal(best.inputUse, 1);
+});
+
+test('typed ingredients steer the choice: chicken input finds a chicken dish, not a lone vegetable', () => {
+  const english = ranked({ ingredients: 'chicken thigh, rice, choy sum', seasonings: 'soy sauce, ginger, scallion' });
+  assert.equal(english[0].record.id, 'RC-0139');
+  assert.deepEqual(english[0].unusedMain, ['rice', 'choy sum']);
+  assert.equal(ranked({ ingredients: '雞腿肉、白飯、菜心', seasonings: '豉油、薑、蔥' })[0].record.id, 'RC-0139');
+  assert.equal(ranked({ ingredients: '雞腿肉 300g, choy sum 200g, 白飯', seasonings: 'soy sauce 10ml、ginger' })[0].record.id, 'RC-0139');
+});
+
+test('other realistic pantries find the matching classic dish', () => {
+  assert.equal(ranked({ ingredients: '蝦、雞蛋、蔥', seasonings: '鹽、油' })[0].record.id, 'RC-0114');
+  assert.equal(ranked({ ingredients: '豆腐、豬肉碎、冬菇', seasonings: '生抽、蠔油、生粉、油' })[0].record.id, 'RC-0184');
+  assert.equal(ranked({ ingredients: '五花腩', seasonings: '鹽、糖、白醋', tools: ['oven'], timeLimit: 300 })[0].record.id, 'RC-0101');
+});
+
+test('a recipe that uses more of the typed ingredients outranks one that ignores them', () => {
+  const results = ranked({ ingredients: '蝦、雞蛋、蔥', seasonings: '鹽、油' });
+  const first = results[0];
+  assert.equal(first.record.id, 'RC-0114');
+  results.slice(1).forEach((other) => assert.ok(other.score < first.score, other.record.id));
+  const vegetableOnly = results.find((candidate) => candidate.record.id === 'RC-0179');
+  assert.ok(!vegetableOnly || vegetableOnly.unusedMain.length > first.unusedMain.length);
+});
+
+test('every flavor choice in the form contributes to ranking where the recipe text allows it', () => {
+  const record = visibleRecords.find((item) => item.id === 'RC-0158');
+  assert.ok(library.flavorScore(record, 'soy-savory') > 0, 'soy-savory is the form id');
+  const curry = visibleRecords.find((item) => /咖喱|curry/i.test(`${item.title_zh_hant} ${item.title_en} ${item.flavor_name_en}`));
+  if (curry) assert.ok(library.flavorScore(curry, 'curry-spiced') > 0, 'curry-spiced is the form id');
+  data.flavors.forEach((flavor) => assert.equal(typeof library.flavorScore(record, flavor.id), 'number'));
+});
+
+test('"everything listed" mode keeps only recipes with nothing missing', () => {
+  const loose = ranked({ ingredients: '蝦、雞蛋、蔥', seasonings: '鹽、油' });
+  const strict = ranked({ ingredients: '蝦、雞蛋、蔥', seasonings: '鹽、油', strictPantry: true });
+  assert.ok(loose.some((candidate) => candidate.missing.length > 0));
+  assert.ok(strict.length >= 1);
+  strict.forEach((candidate) => assert.equal(candidate.missing.length, 0, candidate.record.id));
+  assert.equal(strict[0].record.id, 'RC-0114');
+  assert.deepEqual(ranked({ ingredients: '雞腿肉、白飯、菜心', seasonings: '豉油、薑、蔥', strictPantry: true }), []);
+});
+
+test('when nothing matches, the page can say what to change', () => {
+  const hint = (overrides) => library.explainNoMatch(libraryData.recipes, pantryConfig(overrides));
+  const tools = hint({ ingredients: 'broccoli' });
+  assert.match(tools[0][0], /蒸鍋/);
+  assert.match(tools[0][1], /steamer/);
+  assert.match(hint({ ingredients: '牛肉、菜心', cuisine: 'japanese' })[0][1], /Cantonese/);
+  assert.match(hint({ ingredients: '蝦、雞蛋', dietaryNeeds: 'vegan' })[0][1], /dietary/i);
+  assert.match(hint({ ingredients: 'xyzzy' })[0][1], /enough of the main ingredients/);
+  const strict = hint({ ingredients: '雞腿肉、白飯、菜心', seasonings: '豉油、薑、蔥', strictPantry: true });
+  assert.match(strict[0][1], /Ginger and scallion chicken claypot/);
+  assert.ok(strict.length <= 2);
+  hint({ ingredients: 'xyzzy' }).forEach(([zh, en]) => {
+    assert.match(zh, CJK);
+    assert.doesNotMatch(en, CJK);
+  });
+});
+
+test('the notice for a matched recipe names unused items and keeps the source steps untouched', () => {
+  const config = pantryConfig({ ingredients: 'chicken thigh, rice, choy sum', seasonings: 'soy sauce, ginger, scallion' });
+  const [best] = library.rankRecipes(libraryData.recipes, config);
+  const opened = library.toAppRecipe(best.record, 3, { config, match: best });
+  assert.match(opened.importedMeta.matchNotice[0], /冇用到：rice、choy sum/);
+  assert.match(opened.importedMeta.matchNotice[1], /Not used by this recipe: rice, choy sum/);
+  assert.deepEqual(opened.importedMeta.inputMatch.unusedInputs, ['rice', 'choy sum']);
+  opened.steps.forEach((step, index) => {
+    assert.equal(step.text, best.record.steps_zh_hant[index]);
+    assert.equal(step.textEn, best.record.steps_en[index] || '');
+  });
+  assert.equal(opened.sourceInput.strictPantry, false);
+});
+
+test('the source food-safety step is labeled as a safety check and nothing else is renamed', () => {
+  const record = visibleRecords.find((item) => item.id === 'RC-0179');
+  const opened = library.toAppRecipe(record, 2);
+  assert.equal(opened.steps[4].title, '安全檢查');
+  assert.equal(opened.steps[4].titleEn, 'Safety check');
+  assert.equal(opened.steps[4].icon, '✓');
+  assert.equal(opened.steps[0].title, '步驟 1');
+  assert.equal(opened.steps[0].titleEn, 'Step 1');
+});
+
+test('the page offers the strict switch and the other-options list that app.js drives', () => {
+  const html = fs.readFileSync(path.join(root, 'dist', 'index.html'), 'utf8');
+  const app = fs.readFileSync(path.join(root, 'dist', 'app.js'), 'utf8');
+  ['strict-pantry', 'match-options', 'match-option-list'].forEach((id) => {
+    assert.match(html, new RegExp(`id="${id}"`), id);
+    assert.match(app, new RegExp(`'#${id}'`), id);
+  });
+  assert.match(html, /<input id="strict-pantry" type="checkbox">/, 'strict mode starts switched off');
+  ['optionSwitched', 'optionShowing', 'optionGenericTitle', 'optionGenericNote', 'optionUses', 'optionMissing', 'fallbackNotice', 'genericChosenNotice']
+    .forEach((key) => assert.ok(key in data.ui, key));
+  assert.deepEqual(data.ui.optionUses(2, 3), ['用到你 2/3 樣主要食材', 'uses 2 of your 3 main ingredients']);
+  assert.deepEqual(data.ui.optionMissing(0), ['材料齊全', 'nothing missing']);
+  assert.deepEqual(data.ui.optionMissing(1), ['仲欠 1 樣', '1 item missing']);
+});
+
+test('the example in the page really is a complete match', () => {
+  const html = fs.readFileSync(path.join(root, 'dist', 'index.html'), 'utf8');
+  const app = fs.readFileSync(path.join(root, 'dist', 'app.js'), 'utf8');
+  const ingredients = html.match(/<textarea id="ingredients"[^>]*>([^<]*)<\/textarea>/)[1];
+  const seasonings = html.match(/<input id="seasonings"[^>]*value="([^"]*)"/)[1];
+  assert.ok(app.includes(`elements.ingredients.value = '${ingredients}'`), 'Load example matches the page default');
+  assert.ok(app.includes(`elements.seasonings.value = '${seasonings}'`), 'Load example matches the page default');
+  const [best] = ranked({ ingredients, seasonings, flavor: 'soy-savory' });
+  assert.deepEqual(best.missing, []);
+  assert.deepEqual(best.unusedInputs, []);
 });
 
 process.stdout.write(`\nRESULT: ${passed} passed, ${failed} failed\n`);

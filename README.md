@@ -2,7 +2,7 @@
 
 A simple, offline-capable recipe generator in **Cantonese and English** (Cantonese first, English beneath or beside it). It turns the ingredients and seasonings you enter into a practical gram-based recipe using local rules—no account, API key, package installation, or internet connection is required.
 
-Live site: https://cantonese-recipe-kitchen-2026.aware-coati-5038.chatgpt.site
+Live site: https://tonight-recipe-generator.onrender.com
 
 ## Start the app
 
@@ -32,6 +32,8 @@ Or open `dist/index.html` in a modern browser.
 - Searchable imported library with 1,000 unique bilingual records
 - 100 Cantonese editorial recipes visible by default; 900 unverified demo records require an explicit opt-in
 - Imported recipes scale from 1–6 people or a custom 1–30 people while preserving g/mL units
+- Library-first matching on the main form: the closest library recipe opens with its supplied instructions, the page lists what you did not enter and what the recipe does not use, and an "Other options" list switches to other close matches or the generic recipe
+- An "Everything listed" switch that only accepts recipes where every ingredient and seasoning was entered
 - Basic dietary/allergy conflict warnings
 - Health Canada cooking-temperature guidance
 - Responsive light/dark interface
@@ -41,7 +43,7 @@ Or open `dist/index.html` in a modern browser.
 Every piece of text is a Cantonese + English pair. Cantonese is the main text; English follows it in a lighter style. Recipes saved before the English version existed still open, in Cantonese only.
 
 - Page text is in `dist/index.html`; messages used by the app are in the `ui` section of `dist/recipe-data.js`; generated recipe text (steps, warnings, budget tips) is in `dist/recipe-engine.js`.
-- Ingredient and seasoning names are shown exactly as typed. A built-in glossary of about 130 common foods (`glossary` in `dist/recipe-data.js`) adds the other language beside them and is used inside the English and Cantonese sentences. A food that is not in the glossary is shown as typed, never guessed. To add a food, add a row `[Cantonese, English, ...other spellings]`; matching is exact.
+- Ingredient and seasoning names are shown exactly as typed. A built-in glossary of about 145 common foods (`glossary` in `dist/recipe-data.js`) adds the other language beside them and is used inside the English and Cantonese sentences. A food that is not in the glossary is shown as typed, never guessed. To add a food, add a row `[Cantonese, English, ...other spellings]`; matching is exact.
 - The tests fail if a message is missing its English or Cantonese half.
 
 ## Data and privacy
@@ -53,6 +55,17 @@ Deleting browser site data will delete saved recipes. Different browsers and dev
 ## Imported recipe library
 
 Open **食譜庫 · Recipe library** in the header to search by recipe ID, title, cuisine, flavor, ingredient or seasoning. The 100 Cantonese editorial records (RC-0101–RC-0200) are shown first. They are clearly labeled as editorial and not independently cook-tested.
+
+The main form uses this library before generating a new rules-based recipe:
+
+1. **Understanding what you typed.** Typed foods and recipe ingredients are both reduced to food families (`foodConcepts` in `dist/recipe-library.js`). So `雞腿肉` or `chicken thigh` satisfies a recipe that asks for `嫩雞肉`, `豉油` covers `生抽`, `米酒` covers `紹興酒`, and plain `油` or `oil` covers peanut or canola oil but never oyster sauce. A different cut (`雞胸肉` for `雞腿肉`) or a look-alike (`雞蛋`, `牛油果`) is never accepted. Amounts, counts and bracketed notes are ignored, and a recipe item written as a choice (`大蔥/紅蔥頭`, `lard or butter`) accepts either option. A food the table does not know is compared by its wording only.
+2. **Filtering.** Cuisine, kitchen tools and obvious dietary conflicts must fit. Hidden demo records are never used.
+3. **Ranking.** A recipe needs at least half of its main ingredients. Among those, recipes that use more of the ingredients you typed rank higher, then seasoning coverage, chosen flavor and cooking time.
+4. **Showing it.** The best match opens with its supplied instructions unchanged (only serving-size scaling applies). The page names what you did not enter, which of your items the recipe does not use, and lists up to three other close matches plus the generic rules-based recipe under **Other options**.
+5. **Fallback.** If nothing fits, the original rules-based generator is used and the page says why, for example that a match exists if you also pick the steamer, or choose Cantonese cuisine.
+6. **Everything listed.** When this switch is on, only recipes where every ingredient and seasoning was entered (even water, oil and salt) are used.
+
+To teach the matcher a new food, add a row to `foodConcepts`; the tests fail if any ingredient in a visible recipe is not understood, or if a name resolves to the wrong food.
 
 The supplied corrected 200-record bundle was not present in this workspace. To avoid pretending that unverified data is production-ready, the other 900 records are hidden until the user deliberately enables the demo checkbox. This includes 100 legacy master records and 800 synthetic flavor variations. Imported records have no licensed photos, so the app displays an honest placeholder and still allows a private local photo preview.
 
