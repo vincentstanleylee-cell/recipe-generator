@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="zh-Hant-HK">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#173f35">
+  <meta name="description" content="輸入食材、調味與廚具，即時製作以克為單位的離線食譜。">
+  <title>今晚食乜？Recipe Generator</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#recipe-result">跳到食譜結果</a>
+
+  <header class="site-header">
+    <a class="brand" href="#top" aria-label="今晚食乜？首頁">
+      <span class="brand-mark" aria-hidden="true">食</span>
+      <span>
+        <strong>今晚食乜？</strong>
+        <small>Recipe Generator</small>
+      </span>
+    </a>
+    <div class="header-actions">
+      <span class="offline-badge"><span aria-hidden="true">●</span> 離線可用</span>
+      <button class="secondary-button" id="open-saved" type="button">
+        我的食譜 <span class="count-badge" id="saved-count">0</span>
+      </button>
+    </div>
+  </header>
+
+  <main id="top" class="app-shell">
+    <section class="intro" aria-labelledby="page-title">
+      <div>
+        <p class="eyebrow">屋企有乜，就煮乜</p>
+        <h1 id="page-title">用你現有嘅材料，整一餐真係煮到嘅餸。</h1>
+      </div>
+      <p>揀口味、份量同廚具，我哋會整理克數、步驟、時間同粗略預算。資料只留喺你部瀏覽器。</p>
+    </section>
+
+    <div class="workspace">
+      <section class="builder-panel" aria-labelledby="builder-title">
+        <div class="section-heading">
+          <div>
+            <p class="section-kicker">01 · 你有啲乜？</p>
+            <h2 id="builder-title">設定你今晚想食嘅餸</h2>
+          </div>
+          <button class="text-button" id="load-example" type="button">載入廣東菜示例</button>
+        </div>
+
+        <form id="recipe-form" novalidate>
+          <label class="field field-wide" for="ingredients">
+            <span>主要食材 <strong aria-hidden="true">*</strong></span>
+            <textarea id="ingredients" rows="3" placeholder="例如：雞腿肉、白飯、菜心" required>雞腿肉、白飯、菜心</textarea>
+            <small>用逗號或換行分隔。可選填克數，例如「雞肉 300g」。</small>
+          </label>
+
+          <label class="field field-wide" for="seasonings">
+            <span>已有調味料</span>
+            <input id="seasonings" type="text" value="豉油、薑、蔥" placeholder="例如：鹽、豉油、蒜、黑椒">
+            <small>我哋只會加少量配合口味嘅建議調味。</small>
+          </label>
+
+          <div class="field-grid">
+            <label class="field" for="cuisine">
+              <span>菜式地區</span>
+              <select id="cuisine"></select>
+            </label>
+
+            <label class="field" for="time-limit">
+              <span>最多煮幾耐</span>
+              <select id="time-limit">
+                <option value="20">20 分鐘</option>
+                <option value="40" selected>40 分鐘</option>
+                <option value="60">60 分鐘</option>
+              </select>
+            </label>
+
+            <label class="field" for="servings">
+              <span>份量</span>
+              <select id="servings">
+                <option value="1">1 人</option>
+                <option value="2" selected>2 人</option>
+                <option value="3">3 人</option>
+                <option value="4">4 人</option>
+                <option value="5">5 人</option>
+                <option value="6">6 人</option>
+                <option value="custom">自訂份量</option>
+              </select>
+            </label>
+
+            <label class="field custom-serving" id="custom-serving-wrap" for="custom-serving" hidden>
+              <span>自訂人數</span>
+              <span class="input-suffix">
+                <input id="custom-serving" type="number" min="1" max="30" value="8" inputmode="numeric">
+                <span>人</span>
+              </span>
+            </label>
+          </div>
+
+          <label class="field field-wide" for="dietary-needs">
+            <span>飲食需要或致敏原</span>
+            <input id="dietary-needs" type="text" placeholder="例如：純素、無麩質、花生過敏">
+            <small>系統會提示明顯衝突，但不能保證無致敏原或無交叉污染。</small>
+          </label>
+
+          <fieldset class="choice-section">
+            <legend>
+              <span class="step-number">02</span>
+              想要咩味？
+            </legend>
+            <div class="choice-grid flavor-grid" id="flavor-grid"></div>
+          </fieldset>
+
+          <fieldset class="choice-section">
+            <legend>
+              <span class="step-number">03</span>
+              有咩廚具？
+            </legend>
+            <div class="choice-grid tool-grid" id="tool-grid"></div>
+            <small class="fieldset-help">可以揀多過一樣；系統會用符合時間上限而最快嘅工具。</small>
+          </fieldset>
+
+          <div class="mode-grid">
+            <label class="switch-card" for="budget-mode">
+              <span class="switch-copy">
+                <span class="switch-icon" aria-hidden="true">💰</span>
+                <span><strong>慳錢模式</strong><small>粗略成本同平價替換</small></span>
+              </span>
+              <span class="switch-control">
+                <input id="budget-mode" type="checkbox" checked>
+                <span aria-hidden="true"></span>
+              </span>
+            </label>
+
+            <label class="switch-card" for="visual-mode">
+              <span class="switch-copy">
+                <span class="switch-icon" aria-hidden="true">👀</span>
+                <span><strong>圖像煮食</strong><small>逐步大字煮食卡</small></span>
+              </span>
+              <span class="switch-control">
+                <input id="visual-mode" type="checkbox" checked>
+                <span aria-hidden="true"></span>
+              </span>
+            </label>
+          </div>
+
+          <div class="budget-controls" id="budget-controls">
+            <label class="field" for="currency">
+              <span>貨幣</span>
+              <select id="currency">
+                <option value="CAD">CAD</option>
+                <option value="HKD">HKD</option>
+                <option value="USD">USD</option>
+                <option value="EUR">EUR</option>
+                <option value="GBP">GBP</option>
+                <option value="AUD">AUD</option>
+              </select>
+            </label>
+            <label class="field" for="budget-limit">
+              <span>今餐預算</span>
+              <input id="budget-limit" type="number" min="1" step="1" value="15" inputmode="decimal">
+            </label>
+          </div>
+
+          <p class="form-error" id="form-error" role="alert" hidden></p>
+          <button class="primary-button" type="submit">
+            <span aria-hidden="true">✦</span>
+            生成食譜
+          </button>
+        </form>
+      </section>
+
+      <section class="result-panel" id="recipe-result" aria-labelledby="recipe-title" aria-live="polite">
+        <div class="photo-frame">
+          <img id="dish-photo" src="assets/dish-east-asian.png" alt="廣東風味成品擺盤示意相片">
+          <div class="photo-shade"></div>
+          <div class="photo-topline">
+            <span class="photo-label">成品圖片 · 擺盤示意</span>
+            <label class="photo-upload" for="photo-upload">換成實拍相</label>
+            <input id="photo-upload" type="file" accept="image/*" hidden>
+          </div>
+          <div class="photo-caption">
+            <p id="result-eyebrow">廣東菜 · 2 人份</p>
+            <h2 id="recipe-title">薑蔥清香雞腿肉</h2>
+          </div>
+        </div>
+
+        <div class="result-body">
+          <div class="result-summary">
+            <p id="recipe-description">以鑊快炒，薑蔥香清新，材料同份量會按你嘅選擇即時計算。</p>
+            <div class="meta-row" id="meta-row"></div>
+          </div>
+
+          <div class="notice warning-notice" id="time-warning" hidden>
+            <span aria-hidden="true">⏱</span>
+            <p></p>
+          </div>
+
+          <section class="recipe-section" aria-labelledby="ingredients-title">
+            <div class="recipe-section-heading">
+              <div>
+                <p class="section-kicker">全部用克</p>
+                <h3 id="ingredients-title">材料份量</h3>
+              </div>
+              <span class="soft-badge" id="serving-badge">2 人份</span>
+            </div>
+            <div class="ingredient-columns">
+              <div>
+                <h4>主要食材</h4>
+                <ul class="ingredient-list" id="ingredient-list"></ul>
+              </div>
+              <div>
+                <h4>調味與建議</h4>
+                <ul class="ingredient-list" id="seasoning-list"></ul>
+              </div>
+            </div>
+          </section>
+
+          <section class="recipe-section" aria-labelledby="steps-title">
+            <div class="recipe-section-heading">
+              <div>
+                <p class="section-kicker">跟住做就得</p>
+                <h3 id="steps-title">煮法</h3>
+              </div>
+              <span class="soft-badge" id="method-badge">鑊 · 約 24 分鐘</span>
+            </div>
+            <ol class="method-list" id="method-list"></ol>
+          </section>
+
+          <section class="visual-cook" id="visual-cook" aria-labelledby="visual-title">
+            <div class="visual-heading">
+              <div>
+                <p class="section-kicker">Visual cooking</p>
+                <h3 id="visual-title">逐步煮食卡</h3>
+              </div>
+              <span id="step-counter">1 / 5</span>
+            </div>
+            <div class="progress-track" role="progressbar" aria-label="煮食進度" aria-valuemin="1" aria-valuemax="5" aria-valuenow="1">
+              <span id="step-progress"></span>
+            </div>
+            <div class="visual-card">
+              <div class="visual-icon" id="step-icon" aria-hidden="true">🔪</div>
+              <div>
+                <p class="step-time" id="step-time">約 7 分鐘</p>
+                <h4 id="step-title">切配與調味</h4>
+                <p id="step-text">洗淨並切好所有材料。</p>
+              </div>
+            </div>
+            <div class="step-actions">
+              <button class="secondary-button" id="step-prev" type="button">← 上一步</button>
+              <button class="secondary-button" id="step-next" type="button">下一步 →</button>
+            </div>
+          </section>
+
+          <section class="budget-result" id="budget-result" aria-labelledby="budget-title">
+            <div>
+              <p class="section-kicker">Budget cooking</p>
+              <h3 id="budget-title">粗略預算</h3>
+              <p id="budget-copy"></p>
+            </div>
+            <strong class="budget-total" id="budget-total">CA$0.00</strong>
+            <ul id="budget-tips"></ul>
+            <small id="budget-disclaimer"></small>
+          </section>
+
+          <section class="safety-card" aria-labelledby="safety-title">
+            <span class="safety-icon" aria-hidden="true">✓</span>
+            <div>
+              <h3 id="safety-title">食物安全提示</h3>
+              <ul id="safety-list"></ul>
+              <a id="safety-source" href="https://www.canada.ca/en/health-canada/services/general-food-safety-tips/safe-internal-cooking-temperatures.html" target="_blank" rel="noreferrer">查看 Health Canada 安全烹調溫度</a>
+            </div>
+          </section>
+
+          <section class="personal-card" aria-labelledby="personal-title">
+            <div class="personal-heading">
+              <div>
+                <p class="section-kicker">下次會更啱你</p>
+                <h3 id="personal-title">收藏、評分、記低想點改</h3>
+              </div>
+              <button class="favorite-button" id="favorite-button" type="button" aria-pressed="false">
+                <span aria-hidden="true">♡</span> 收藏
+              </button>
+            </div>
+            <fieldset class="rating-fieldset">
+              <legend>今次煮得點？</legend>
+              <div class="rating-row" id="rating-row" aria-label="食譜評分"></div>
+            </fieldset>
+            <label class="field field-wide" for="recipe-notes">
+              <span>下次想點改</span>
+              <textarea id="recipe-notes" rows="2" placeholder="例如：下次少辣少少，菜心遲 1 分鐘落鑊。"></textarea>
+            </label>
+            <div class="save-row">
+              <button class="primary-button compact" id="save-recipe" type="button">儲存到我的食譜</button>
+              <span id="save-status" role="status"></span>
+            </div>
+          </section>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer>
+    <p>離線規則式 MVP · 預算係粗略估算 · 嚴重食物敏感請向專業人士確認</p>
+  </footer>
+
+  <dialog id="saved-dialog" aria-labelledby="saved-title">
+    <div class="dialog-header">
+      <div>
+        <p class="section-kicker">My recipes</p>
+        <h2 id="saved-title">我的食譜</h2>
+      </div>
+      <button class="icon-button" id="close-saved" type="button" aria-label="關閉我的食譜">×</button>
+    </div>
+    <div class="saved-list" id="saved-list"></div>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <noscript>
+    <div class="noscript">呢個食譜工具需要 JavaScript。請開啟 JavaScript 後再試。</div>
+  </noscript>
+
+  <script src="recipe-data.js"></script>
+  <script src="recipe-engine.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

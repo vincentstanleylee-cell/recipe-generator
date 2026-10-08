@@ -1,0 +1,9 @@
+# Render Blueprint: publishes the buildless "dist" folder as a free Static Site.
+# There is nothing to install or compile, so the build command is a no-op.
+# Every push to the repo's main branch redeploys the site automatically.
+services:
+  - type: web
+    runtime: static
+    name: tonight-recipe-generator
+    buildCommand: echo "No build step - dist/ is published as-is"
+    staticPublishPath: ./dist

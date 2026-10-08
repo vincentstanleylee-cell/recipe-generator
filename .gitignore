@@ -1,0 +1,26 @@
+# Allow-list: ignore everything, then re-include only what is meant to be published.
+*
+
+!/.gitignore
+!/.env.example
+!/README.md
+!/PROJECT_AUDIT.md
+!/START.bat
+!/package.json
+!/render.yaml
+
+!/dist/
+!/dist/**
+!/tests/
+!/tests/**
+
+# Safety net (keep last): never publish secrets or junk, even inside allowed folders.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+node_modules/
+*.log
+.DS_Store
+Thumbs.db

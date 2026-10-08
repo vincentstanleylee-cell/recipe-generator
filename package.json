@@ -1,0 +1,12 @@
+{
+  "name": "recipe-generator-offline",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A buildless, offline-capable Cantonese recipe generator with gram scaling, budget estimates, visual steps, and local recipe storage.",
+  "scripts": {
+    "test": "node tests/run-tests.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
