@@ -4,25 +4,25 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#173f35">
-  <meta name="description" content="輸入食材、調味與廚具，即時製作以克為單位的離線食譜。">
-  <title>今晚食乜？Recipe Generator</title>
+  <meta name="description" content="輸入食材、調味與廚具，即時製作以克為單位的離線食譜。 Enter your ingredients, seasonings and kitchen tools to get an offline recipe measured in grams.">
+  <title>今晚食乜？What's for dinner? · Recipe Generator</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <a class="skip-link" href="#recipe-result">跳到食譜結果</a>
+  <a class="skip-link" href="#recipe-result"><span class="zh">跳到食譜結果</span><span class="en inline" lang="en">Skip to the recipe</span></a>
 
   <header class="site-header">
-    <a class="brand" href="#top" aria-label="今晚食乜？首頁">
+    <a class="brand" href="#top" aria-label="今晚食乜？首頁 · Home">
       <span class="brand-mark" aria-hidden="true">食</span>
       <span>
         <strong>今晚食乜？</strong>
-        <small>Recipe Generator</small>
+        <small>What's for dinner? · Recipe Generator</small>
       </span>
     </a>
     <div class="header-actions">
-      <span class="offline-badge"><span aria-hidden="true">●</span> 離線可用</span>
+      <span class="offline-badge"><span aria-hidden="true">●</span> <span class="zh">離線可用</span><span class="en inline" lang="en">Works offline</span></span>
       <button class="secondary-button" id="open-saved" type="button">
-        我的食譜 <span class="count-badge" id="saved-count">0</span>
+        <span class="zh">我的食譜</span><span class="en inline" lang="en">My recipes</span> <span class="count-badge" id="saved-count">0</span>
       </button>
     </div>
   </header>
@@ -30,82 +30,82 @@
   <main id="top" class="app-shell">
     <section class="intro" aria-labelledby="page-title">
       <div>
-        <p class="eyebrow">屋企有乜，就煮乜</p>
-        <h1 id="page-title">用你現有嘅材料，整一餐真係煮到嘅餸。</h1>
+        <p class="eyebrow"><span class="zh">屋企有乜，就煮乜</span><span class="en inline" lang="en">Cook what you have at home</span></p>
+        <h1 id="page-title"><span class="zh">用你現有嘅材料，整一餐真係煮到嘅餸。</span><span class="en" lang="en">Make a meal you can really cook, using what you already have.</span></h1>
       </div>
-      <p>揀口味、份量同廚具，我哋會整理克數、步驟、時間同粗略預算。資料只留喺你部瀏覽器。</p>
+      <p><span class="zh">揀口味、份量同廚具，我哋會整理克數、步驟、時間同粗略預算。資料只留喺你部瀏覽器。</span><span class="en" lang="en">Pick your flavor, servings and tools, and we'll work out the grams, steps, timing and a rough budget. Your data stays in your browser.</span></p>
     </section>
 
     <div class="workspace">
       <section class="builder-panel" aria-labelledby="builder-title">
         <div class="section-heading">
           <div>
-            <p class="section-kicker">01 · 你有啲乜？</p>
-            <h2 id="builder-title">設定你今晚想食嘅餸</h2>
+            <p class="section-kicker">01 · <span class="zh">你有啲乜？</span><span class="en inline" lang="en">What do you have?</span></p>
+            <h2 id="builder-title"><span class="zh">設定你今晚想食嘅餸</span><span class="en" lang="en">Set up tonight's dish</span></h2>
           </div>
-          <button class="text-button" id="load-example" type="button">載入廣東菜示例</button>
+          <button class="text-button" id="load-example" type="button"><span class="zh">載入廣東菜示例</span><span class="en" lang="en">Load the Cantonese example</span></button>
         </div>
 
         <form id="recipe-form" novalidate>
           <label class="field field-wide" for="ingredients">
-            <span>主要食材 <strong aria-hidden="true">*</strong></span>
-            <textarea id="ingredients" rows="3" placeholder="例如：雞腿肉、白飯、菜心" required>雞腿肉、白飯、菜心</textarea>
-            <small>用逗號或換行分隔。可選填克數，例如「雞肉 300g」。</small>
+            <span><span class="zh">主要食材</span><span class="en inline" lang="en">Main ingredients</span> <strong aria-hidden="true">*</strong></span>
+            <textarea id="ingredients" rows="3" placeholder="例如：雞腿肉、白飯、菜心 · e.g. chicken thigh, rice, choy sum" required>雞腿肉、白飯、菜心</textarea>
+            <small><span class="zh">用逗號或換行分隔。可選填克數，例如「雞肉 300g」。</span><span class="en" lang="en">Separate with commas or new lines. You can add grams, e.g. "chicken 300g".</span></small>
           </label>
 
           <label class="field field-wide" for="seasonings">
-            <span>已有調味料</span>
-            <input id="seasonings" type="text" value="豉油、薑、蔥" placeholder="例如：鹽、豉油、蒜、黑椒">
-            <small>我哋只會加少量配合口味嘅建議調味。</small>
+            <span><span class="zh">已有調味料</span><span class="en inline" lang="en">Seasonings you have</span></span>
+            <input id="seasonings" type="text" value="豉油、薑、蔥" placeholder="例如：鹽、豉油、蒜、黑椒 · e.g. salt, soy sauce, garlic, black pepper">
+            <small><span class="zh">我哋只會加少量配合口味嘅建議調味。</span><span class="en" lang="en">We only add a small amount of suggested seasoning to match the flavor.</span></small>
           </label>
 
           <div class="field-grid">
             <label class="field" for="cuisine">
-              <span>菜式地區</span>
+              <span><span class="zh">菜式地區</span><span class="en inline" lang="en">Cuisine</span></span>
               <select id="cuisine"></select>
             </label>
 
             <label class="field" for="time-limit">
-              <span>最多煮幾耐</span>
+              <span><span class="zh">最多煮幾耐</span><span class="en inline" lang="en">Max cooking time</span></span>
               <select id="time-limit">
-                <option value="20">20 分鐘</option>
-                <option value="40" selected>40 分鐘</option>
-                <option value="60">60 分鐘</option>
+                <option value="20">20 分鐘 · 20 min</option>
+                <option value="40" selected>40 分鐘 · 40 min</option>
+                <option value="60">60 分鐘 · 60 min</option>
               </select>
             </label>
 
             <label class="field" for="servings">
-              <span>份量</span>
+              <span><span class="zh">份量</span><span class="en inline" lang="en">Servings</span></span>
               <select id="servings">
-                <option value="1">1 人</option>
-                <option value="2" selected>2 人</option>
-                <option value="3">3 人</option>
-                <option value="4">4 人</option>
-                <option value="5">5 人</option>
-                <option value="6">6 人</option>
-                <option value="custom">自訂份量</option>
+                <option value="1">1 人 · 1 person</option>
+                <option value="2" selected>2 人 · 2 people</option>
+                <option value="3">3 人 · 3 people</option>
+                <option value="4">4 人 · 4 people</option>
+                <option value="5">5 人 · 5 people</option>
+                <option value="6">6 人 · 6 people</option>
+                <option value="custom">自訂份量 · Custom</option>
               </select>
             </label>
 
             <label class="field custom-serving" id="custom-serving-wrap" for="custom-serving" hidden>
-              <span>自訂人數</span>
+              <span><span class="zh">自訂人數</span><span class="en inline" lang="en">Custom number of people</span></span>
               <span class="input-suffix">
                 <input id="custom-serving" type="number" min="1" max="30" value="8" inputmode="numeric">
-                <span>人</span>
+                <span><span class="zh">人</span><span class="en inline" lang="en">people</span></span>
               </span>
             </label>
           </div>
 
           <label class="field field-wide" for="dietary-needs">
-            <span>飲食需要或致敏原</span>
-            <input id="dietary-needs" type="text" placeholder="例如：純素、無麩質、花生過敏">
-            <small>系統會提示明顯衝突，但不能保證無致敏原或無交叉污染。</small>
+            <span><span class="zh">飲食需要或致敏原</span><span class="en inline" lang="en">Dietary needs or allergies</span></span>
+            <input id="dietary-needs" type="text" placeholder="例如：純素、無麩質、花生過敏 · e.g. vegan, gluten-free, peanut allergy">
+            <small><span class="zh">系統會提示明顯衝突，但不能保證無致敏原或無交叉污染。</span><span class="en" lang="en">We flag obvious conflicts, but cannot guarantee a recipe is free of allergens or cross-contact.</span></small>
           </label>
 
           <fieldset class="choice-section">
             <legend>
               <span class="step-number">02</span>
-              想要咩味？
+              <span class="zh">想要咩味？</span><span class="en inline" lang="en">What flavor do you want?</span>
             </legend>
             <div class="choice-grid flavor-grid" id="flavor-grid"></div>
           </fieldset>
@@ -113,17 +113,17 @@
           <fieldset class="choice-section">
             <legend>
               <span class="step-number">03</span>
-              有咩廚具？
+              <span class="zh">有咩廚具？</span><span class="en inline" lang="en">What kitchen tools do you have?</span>
             </legend>
             <div class="choice-grid tool-grid" id="tool-grid"></div>
-            <small class="fieldset-help">可以揀多過一樣；系統會用符合時間上限而最快嘅工具。</small>
+            <small class="fieldset-help"><span class="zh">可以揀多過一樣；系統會用符合時間上限而最快嘅工具。</span><span class="en" lang="en">You can pick more than one; we use the fastest tool that fits your time limit.</span></small>
           </fieldset>
 
           <div class="mode-grid">
             <label class="switch-card" for="budget-mode">
               <span class="switch-copy">
                 <span class="switch-icon" aria-hidden="true">💰</span>
-                <span><strong>慳錢模式</strong><small>粗略成本同平價替換</small></span>
+                <span><strong><span class="zh">慳錢模式</span><span class="en inline" lang="en">Budget mode</span></strong><small><span class="zh">粗略成本同平價替換</span><span class="en" lang="en">Rough cost and cheaper swaps</span></small></span>
               </span>
               <span class="switch-control">
                 <input id="budget-mode" type="checkbox" checked>
@@ -134,7 +134,7 @@
             <label class="switch-card" for="visual-mode">
               <span class="switch-copy">
                 <span class="switch-icon" aria-hidden="true">👀</span>
-                <span><strong>圖像煮食</strong><small>逐步大字煮食卡</small></span>
+                <span><strong><span class="zh">圖像煮食</span><span class="en inline" lang="en">Visual cooking</span></strong><small><span class="zh">逐步大字煮食卡</span><span class="en" lang="en">Big step-by-step cards</span></small></span>
               </span>
               <span class="switch-control">
                 <input id="visual-mode" type="checkbox" checked>
@@ -145,7 +145,7 @@
 
           <div class="budget-controls" id="budget-controls">
             <label class="field" for="currency">
-              <span>貨幣</span>
+              <span><span class="zh">貨幣</span><span class="en inline" lang="en">Currency</span></span>
               <select id="currency">
                 <option value="CAD">CAD</option>
                 <option value="HKD">HKD</option>
@@ -156,7 +156,7 @@
               </select>
             </label>
             <label class="field" for="budget-limit">
-              <span>今餐預算</span>
+              <span><span class="zh">今餐預算</span><span class="en inline" lang="en">Budget for this meal</span></span>
               <input id="budget-limit" type="number" min="1" step="1" value="15" inputmode="decimal">
             </label>
           </div>
@@ -164,29 +164,29 @@
           <p class="form-error" id="form-error" role="alert" hidden></p>
           <button class="primary-button" type="submit">
             <span aria-hidden="true">✦</span>
-            生成食譜
+            <span class="zh">生成食譜</span><span class="en inline" lang="en">Generate recipe</span>
           </button>
         </form>
       </section>
 
       <section class="result-panel" id="recipe-result" aria-labelledby="recipe-title" aria-live="polite">
         <div class="photo-frame">
-          <img id="dish-photo" src="assets/dish-east-asian.png" alt="廣東風味成品擺盤示意相片">
+          <img id="dish-photo" src="assets/dish-east-asian.png" alt="廣東風味成品擺盤示意相片 · Cantonese-style finished dish presentation photo">
           <div class="photo-shade"></div>
           <div class="photo-topline">
-            <span class="photo-label">成品圖片 · 擺盤示意</span>
-            <label class="photo-upload" for="photo-upload">換成實拍相</label>
+            <span class="photo-label"><span class="zh">成品圖片 · 擺盤示意</span><span class="en" lang="en">Finished dish · plating example</span></span>
+            <label class="photo-upload" for="photo-upload"><span class="zh">換成實拍相</span><span class="en inline" lang="en">Use your own photo</span></label>
             <input id="photo-upload" type="file" accept="image/*" hidden>
           </div>
           <div class="photo-caption">
-            <p id="result-eyebrow">廣東菜 · 2 人份</p>
-            <h2 id="recipe-title">薑蔥清香雞腿肉</h2>
+            <p id="result-eyebrow">廣東菜 · Cantonese · 2 人份 · 2 servings</p>
+            <h2 id="recipe-title"><span class="zh">薑蔥清香雞腿肉</span><span class="en" lang="en">Ginger and scallion chicken thigh</span></h2>
           </div>
         </div>
 
         <div class="result-body">
           <div class="result-summary">
-            <p id="recipe-description">以鑊快炒，薑蔥香清新，材料同份量會按你嘅選擇即時計算。</p>
+            <p id="recipe-description"><span class="zh">以鑊快炒，薑蔥香清新，材料同份量會按你嘅選擇即時計算。</span><span class="en" lang="en">Quick-fried in a wok with fresh ginger and scallion; ingredients and amounts are calculated from your choices.</span></p>
             <div class="meta-row" id="meta-row"></div>
           </div>
 
@@ -198,18 +198,18 @@
           <section class="recipe-section" aria-labelledby="ingredients-title">
             <div class="recipe-section-heading">
               <div>
-                <p class="section-kicker">全部用克</p>
-                <h3 id="ingredients-title">材料份量</h3>
+                <p class="section-kicker"><span class="zh">全部用克</span><span class="en inline" lang="en">All in grams</span></p>
+                <h3 id="ingredients-title"><span class="zh">材料份量</span><span class="en" lang="en">Ingredient amounts</span></h3>
               </div>
-              <span class="soft-badge" id="serving-badge">2 人份</span>
+              <span class="soft-badge" id="serving-badge"><span class="zh">2 人份</span><span class="en inline" lang="en">2 servings</span></span>
             </div>
             <div class="ingredient-columns">
               <div>
-                <h4>主要食材</h4>
+                <h4><span class="zh">主要食材</span><span class="en inline" lang="en">Main ingredients</span></h4>
                 <ul class="ingredient-list" id="ingredient-list"></ul>
               </div>
               <div>
-                <h4>調味與建議</h4>
+                <h4><span class="zh">調味與建議</span><span class="en inline" lang="en">Seasonings and suggestions</span></h4>
                 <ul class="ingredient-list" id="seasoning-list"></ul>
               </div>
             </div>
@@ -218,10 +218,10 @@
           <section class="recipe-section" aria-labelledby="steps-title">
             <div class="recipe-section-heading">
               <div>
-                <p class="section-kicker">跟住做就得</p>
-                <h3 id="steps-title">煮法</h3>
+                <p class="section-kicker"><span class="zh">跟住做就得</span><span class="en inline" lang="en">Follow along</span></p>
+                <h3 id="steps-title"><span class="zh">煮法</span><span class="en" lang="en">Method</span></h3>
               </div>
-              <span class="soft-badge" id="method-badge">鑊 · 約 24 分鐘</span>
+              <span class="soft-badge" id="method-badge"><span class="zh">鑊 · 約 24 分鐘</span><span class="en inline" lang="en">Wok · about 24 min</span></span>
             </div>
             <ol class="method-list" id="method-list"></ol>
           </section>
@@ -229,32 +229,32 @@
           <section class="visual-cook" id="visual-cook" aria-labelledby="visual-title">
             <div class="visual-heading">
               <div>
-                <p class="section-kicker">Visual cooking</p>
-                <h3 id="visual-title">逐步煮食卡</h3>
+                <p class="section-kicker"><span class="zh">圖像煮食</span><span class="en inline" lang="en">Visual cooking</span></p>
+                <h3 id="visual-title"><span class="zh">逐步煮食卡</span><span class="en" lang="en">Step-by-step cards</span></h3>
               </div>
               <span id="step-counter">1 / 5</span>
             </div>
-            <div class="progress-track" role="progressbar" aria-label="煮食進度" aria-valuemin="1" aria-valuemax="5" aria-valuenow="1">
+            <div class="progress-track" role="progressbar" aria-label="煮食進度 · Cooking progress" aria-valuemin="1" aria-valuemax="5" aria-valuenow="1">
               <span id="step-progress"></span>
             </div>
             <div class="visual-card">
               <div class="visual-icon" id="step-icon" aria-hidden="true">🔪</div>
               <div>
-                <p class="step-time" id="step-time">約 7 分鐘</p>
-                <h4 id="step-title">切配與調味</h4>
-                <p id="step-text">洗淨並切好所有材料。</p>
+                <p class="step-time" id="step-time"><span class="zh">約 7 分鐘</span><span class="en inline" lang="en">about 7 min</span></p>
+                <h4 id="step-title"><span class="zh">切配與調味</span><span class="en" lang="en">Prep and season</span></h4>
+                <p id="step-text"><span class="zh">洗淨並切好所有材料。</span><span class="en" lang="en">Wash and cut all the ingredients.</span></p>
               </div>
             </div>
             <div class="step-actions">
-              <button class="secondary-button" id="step-prev" type="button">← 上一步</button>
-              <button class="secondary-button" id="step-next" type="button">下一步 →</button>
+              <button class="secondary-button" id="step-prev" type="button">← <span class="zh">上一步</span><span class="en inline" lang="en">Previous</span></button>
+              <button class="secondary-button" id="step-next" type="button"><span class="zh">下一步</span><span class="en inline" lang="en">Next</span> →</button>
             </div>
           </section>
 
           <section class="budget-result" id="budget-result" aria-labelledby="budget-title">
             <div>
-              <p class="section-kicker">Budget cooking</p>
-              <h3 id="budget-title">粗略預算</h3>
+              <p class="section-kicker"><span class="zh">慳錢煮食</span><span class="en inline" lang="en">Budget cooking</span></p>
+              <h3 id="budget-title"><span class="zh">粗略預算</span><span class="en" lang="en">Rough budget</span></h3>
               <p id="budget-copy"></p>
             </div>
             <strong class="budget-total" id="budget-total">CA$0.00</strong>
@@ -265,32 +265,32 @@
           <section class="safety-card" aria-labelledby="safety-title">
             <span class="safety-icon" aria-hidden="true">✓</span>
             <div>
-              <h3 id="safety-title">食物安全提示</h3>
+              <h3 id="safety-title"><span class="zh">食物安全提示</span><span class="en" lang="en">Food safety tips</span></h3>
               <ul id="safety-list"></ul>
-              <a id="safety-source" href="https://www.canada.ca/en/health-canada/services/general-food-safety-tips/safe-internal-cooking-temperatures.html" target="_blank" rel="noreferrer">查看 Health Canada 安全烹調溫度</a>
+              <a id="safety-source" href="https://www.canada.ca/en/health-canada/services/general-food-safety-tips/safe-internal-cooking-temperatures.html" target="_blank" rel="noreferrer"><span class="zh">查看 Health Canada 安全烹調溫度</span><span class="en inline" lang="en">See Health Canada's safe cooking temperatures</span></a>
             </div>
           </section>
 
           <section class="personal-card" aria-labelledby="personal-title">
             <div class="personal-heading">
               <div>
-                <p class="section-kicker">下次會更啱你</p>
-                <h3 id="personal-title">收藏、評分、記低想點改</h3>
+                <p class="section-kicker"><span class="zh">下次會更啱你</span><span class="en inline" lang="en">Better next time</span></p>
+                <h3 id="personal-title"><span class="zh">收藏、評分、記低想點改</span><span class="en" lang="en">Favorite, rate and note what to change</span></h3>
               </div>
               <button class="favorite-button" id="favorite-button" type="button" aria-pressed="false">
-                <span aria-hidden="true">♡</span> 收藏
+                <span aria-hidden="true">♡</span> <span class="zh">收藏</span><span class="en inline" lang="en">Favorite</span>
               </button>
             </div>
             <fieldset class="rating-fieldset">
-              <legend>今次煮得點？</legend>
-              <div class="rating-row" id="rating-row" aria-label="食譜評分"></div>
+              <legend><span class="zh">今次煮得點？</span><span class="en inline" lang="en">How did it turn out?</span></legend>
+              <div class="rating-row" id="rating-row" aria-label="食譜評分 · Recipe rating"></div>
             </fieldset>
             <label class="field field-wide" for="recipe-notes">
-              <span>下次想點改</span>
-              <textarea id="recipe-notes" rows="2" placeholder="例如：下次少辣少少，菜心遲 1 分鐘落鑊。"></textarea>
+              <span><span class="zh">下次想點改</span><span class="en inline" lang="en">What to change next time</span></span>
+              <textarea id="recipe-notes" rows="2" placeholder="例如：下次少辣少少，菜心遲 1 分鐘落鑊。 · e.g. a little less spicy next time; add the choy sum 1 minute later."></textarea>
             </label>
             <div class="save-row">
-              <button class="primary-button compact" id="save-recipe" type="button">儲存到我的食譜</button>
+              <button class="primary-button compact" id="save-recipe" type="button"><span class="zh">儲存到我的食譜</span><span class="en inline" lang="en">Save to My recipes</span></button>
               <span id="save-status" role="status"></span>
             </div>
           </section>
@@ -300,16 +300,16 @@
   </main>
 
   <footer>
-    <p>離線規則式 MVP · 預算係粗略估算 · 嚴重食物敏感請向專業人士確認</p>
+    <p><span class="zh">離線規則式 MVP · 預算係粗略估算 · 嚴重食物敏感請向專業人士確認</span><span class="en" lang="en">Offline rules-based MVP · Budget figures are rough estimates · For serious food allergies, please check with a qualified professional</span></p>
   </footer>
 
   <dialog id="saved-dialog" aria-labelledby="saved-title">
     <div class="dialog-header">
       <div>
-        <p class="section-kicker">My recipes</p>
-        <h2 id="saved-title">我的食譜</h2>
+        <p class="section-kicker"><span class="zh">已儲存食譜</span><span class="en inline" lang="en">Saved recipes</span></p>
+        <h2 id="saved-title"><span class="zh">我的食譜</span><span class="en" lang="en">My recipes</span></h2>
       </div>
-      <button class="icon-button" id="close-saved" type="button" aria-label="關閉我的食譜">×</button>
+      <button class="icon-button" id="close-saved" type="button" aria-label="關閉我的食譜 · Close My recipes">×</button>
     </div>
     <div class="saved-list" id="saved-list"></div>
   </dialog>
@@ -317,7 +317,7 @@
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <noscript>
-    <div class="noscript">呢個食譜工具需要 JavaScript。請開啟 JavaScript 後再試。</div>
+    <div class="noscript"><span class="zh">呢個食譜工具需要 JavaScript。請開啟 JavaScript 後再試。</span><span class="en" lang="en">This recipe tool needs JavaScript. Please turn on JavaScript and try again.</span></div>
   </noscript>
 
   <script src="recipe-data.js"></script>

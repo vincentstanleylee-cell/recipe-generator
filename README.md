@@ -1,6 +1,8 @@
 # 今晚食乜？Recipe Generator
 
-A simple, offline-capable recipe generator in Cantonese/Traditional Chinese. It turns the ingredients and seasonings you enter into a practical gram-based recipe using local rules—no account, API key, package installation, or internet connection is required.
+A simple, offline-capable recipe generator in **Cantonese and English** (Cantonese first, English beneath or beside it). It turns the ingredients and seasonings you enter into a practical gram-based recipe using local rules—no account, API key, package installation, or internet connection is required.
+
+Live site: https://tonight-recipe-generator.onrender.com
 
 ## Start the app
 
@@ -14,7 +16,8 @@ Or open `dist/index.html` in a modern browser.
 
 ## What works
 
-- Ingredient and seasoning input, including optional explicit amounts such as `雞肉 300g`
+- Cantonese + English throughout: every label, recipe, step, warning, budget tip and message shows both languages
+- Ingredient and seasoning input in either language, including optional explicit amounts such as `雞肉 300g` or `chicken 300g`
 - More than 30 cuisine choices across major world regions
 - 12 flavor profiles
 - Wok, rice cooker, steamer, pot, oven, and air-fryer methods
@@ -29,6 +32,14 @@ Or open `dist/index.html` in a modern browser.
 - Basic dietary/allergy conflict warnings
 - Health Canada cooking-temperature guidance
 - Responsive light/dark interface
+
+## Languages
+
+Every piece of text is a Cantonese + English pair. Cantonese is the main text; English follows it in a lighter style. Recipes saved before the English version existed still open, in Cantonese only.
+
+- Page text is in `dist/index.html`; messages used by the app are in the `ui` section of `dist/recipe-data.js`; generated recipe text (steps, warnings, budget tips) is in `dist/recipe-engine.js`.
+- Ingredient and seasoning names are shown exactly as typed. A built-in glossary of about 130 common foods (`glossary` in `dist/recipe-data.js`) adds the other language beside them and is used inside the English and Cantonese sentences. A food that is not in the glossary is shown as typed, never guessed. To add a food, add a row `[Cantonese, English, ...other spellings]`; matching is exact.
+- The tests fail if a message is missing its English or Cantonese half.
 
 ## Data and privacy
 
@@ -63,7 +74,7 @@ There are no runtime dependencies and no installation step.
 dist/
   index.html              Browser application
   styles.css              Responsive visual design
-  recipe-data.js          Cuisines, flavors, tools, measurement rules
+  recipe-data.js          Cuisines, flavors, tools, measurement rules, food glossary, interface messages
   recipe-engine.js        Recipe, budget, safety, and step generation
   app.js                  Browser UI and local recipe storage
   assets/                 Bundled finished-dish photographs

@@ -5,6 +5,9 @@
   const engine = window.RecipeEngine;
   if (!data || !engine) throw new Error('Recipe data and engine failed to load.');
 
+  const ui = data.ui;
+  const CJK = /[㐀-鿿]/;
+
   const STORAGE_KEY = 'recipe-generator.saved.v1';
   const DRAFT_KEY = 'recipe-generator.draft.v1';
   const MAX_SAVED_RECIPES = 50;
@@ -79,6 +82,41 @@
   let uploadedPhotoUrl = '';
   let toastTimer = null;
 
+  // Bilingual text -------------------------------------------------------------------------------
+  // Cantonese first, English second. A pair is [Cantonese, English]; the English part may be empty
+  // (recipes saved before the English version existed), in which case only Cantonese is shown.
+
+  function textSpan(className, text, lang) {
+    const span = document.createElement('span');
+    span.className = className;
+    if (lang) span.lang = lang;
+    span.textContent = text;
+    return span;
+  }
+
+  function bilingualNodes(zh, en, inline) {
+    const nodes = [textSpan('zh', zh)];
+    if (en) nodes.push(textSpan(inline ? 'en inline' : 'en', en, 'en'));
+    return nodes;
+  }
+
+  function setBilingual(element, pair, inline) {
+    element.replaceChildren(...bilingualNodes(pair[0], pair[1], inline));
+  }
+
+  // One line of plain text for attributes and dialogs, where markup is not possible.
+  function plain(pair) {
+    return pair[1] ? `${pair[0]} · ${pair[1]}` : pair[0];
+  }
+
+  function appendListItem(list, pair) {
+    const item = document.createElement('li');
+    item.append(...bilingualNodes(pair[0], pair[1]));
+    list.append(item);
+  }
+
+  // Storage --------------------------------------------------------------------------------------
+
   function safeJsonParse(value, fallback) {
     try {
       const parsed = JSON.parse(value);
@@ -103,26 +141,29 @@
       updateSavedCount();
       return true;
     } catch (_error) {
-      showToast('未能儲存。瀏覽器可能封鎖咗本機儲存。');
+      showToast(ui.saveFailed);
       return false;
     }
   }
 
-  function showToast(message) {
-    elements.toast.textContent = message;
+  function showToast(pair) {
+    setBilingual(elements.toast, pair);
     elements.toast.classList.add('show');
     window.clearTimeout(toastTimer);
-    toastTimer = window.setTimeout(() => elements.toast.classList.remove('show'), 2400);
+    toastTimer = window.setTimeout(() => elements.toast.classList.remove('show'), 3000);
   }
 
-  function createButton(className, text, attributes) {
+  function createButton(className, content, attributes) {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = className;
-    button.textContent = text;
+    if (Array.isArray(content)) button.append(...bilingualNodes(content[0], content[1], true));
+    else button.textContent = content;
     Object.entries(attributes || {}).forEach(([name, value]) => button.setAttribute(name, value));
     return button;
   }
+
+  // Form -----------------------------------------------------------------------------------------
 
   function populateControls() {
     data.cuisines.forEach((cuisine) => {
@@ -136,14 +177,15 @@
       const button = createButton('choice-button', '', {
         'data-flavor': flavor.id,
         'aria-pressed': String(flavor.id === selectedFlavor),
-        'aria-label': `${flavor.label}：${flavor.description}`
+        'aria-label': `${flavor.label} ${flavor.labelEn}：${flavor.description}；${flavor.descriptionEn}`
       });
       const icon = document.createElement('span');
       icon.className = 'choice-icon';
       icon.setAttribute('aria-hidden', 'true');
       icon.textContent = flavor.icon;
       const label = document.createElement('span');
-      label.textContent = flavor.label;
+      label.className = 'choice-label';
+      label.append(...bilingualNodes(flavor.label, flavor.labelEn));
       button.append(icon, label);
       elements.flavorGrid.append(button);
     });
@@ -159,7 +201,8 @@
       icon.setAttribute('aria-hidden', 'true');
       icon.textContent = tool.icon;
       const label = document.createElement('span');
-      label.textContent = tool.label;
+      label.className = 'choice-label';
+      label.append(...bilingualNodes(tool.short, tool.shortEn));
       button.append(icon, label);
       elements.toolGrid.append(button);
     });
@@ -167,7 +210,7 @@
     for (let rating = 1; rating <= 5; rating += 1) {
       const button = createButton('rating-button', '★', {
         'data-rating': String(rating),
-        'aria-label': `${rating} 星`,
+        'aria-label': plain(ui.stars(rating)),
         'aria-pressed': 'false'
       });
       elements.ratingRow.append(button);
@@ -252,20 +295,30 @@
     elements.visualCook.hidden = !elements.visualMode.checked;
   }
 
+  // Recipe ---------------------------------------------------------------------------------------
+
   function renderMeta(recipe) {
     elements.metaRow.replaceChildren();
+    const minutes = ui.aboutMinutes(recipe.estimatedMinutes);
     const chips = [
-      `${recipe.flavor.icon} ${recipe.flavor.label}`,
-      `${recipe.tool.icon} ${recipe.tool.short}`,
-      `⏱ 約 ${recipe.estimatedMinutes} 分鐘`,
-      `⚖ 全部用克`
+      [`${recipe.flavor.icon} ${recipe.flavor.label}`, recipe.flavor.labelEn],
+      [`${recipe.tool.icon} ${recipe.tool.short}`, recipe.tool.shortEn],
+      [`⏱ ${minutes[0]}`, minutes[1]],
+      [`⚖ ${ui.allInGrams[0]}`, ui.allInGrams[1]]
     ];
-    chips.forEach((text) => {
+    chips.forEach(([zh, en]) => {
       const chip = document.createElement('span');
       chip.className = 'meta-chip';
-      chip.textContent = text;
+      chip.append(...bilingualNodes(zh, en, true));
       elements.metaRow.append(chip);
     });
+  }
+
+  // The name is shown as typed; this is the same food in the other language, when it is known.
+  function glossFor(item) {
+    const gloss = CJK.test(item.name) ? item.nameEn : item.nameZh;
+    if (!gloss) return '';
+    return gloss.trim().toLowerCase() === String(item.name).trim().toLowerCase() ? '' : gloss;
   }
 
   function renderMeasuredList(target, items) {
@@ -273,15 +326,22 @@
     items.forEach((item) => {
       const row = document.createElement('li');
       const copy = document.createElement('span');
-      copy.textContent = item.name;
+      copy.className = 'item-copy';
+      const name = document.createElement('span');
+      name.className = 'item-name';
+      name.textContent = item.name;
+      copy.append(name);
+      const gloss = glossFor(item);
+      if (gloss) copy.append(textSpan('item-gloss', gloss, CJK.test(gloss) ? 'zh-Hant-HK' : 'en'));
       if (item.inferred || item.suggested) {
         const note = document.createElement('small');
         note.className = 'item-note';
-        note.textContent = item.suggested ? '配合口味嘅建議' : '按份量估算';
+        const pair = item.suggested ? ui.suggestedNote : ui.estimatedNote;
+        note.append(...bilingualNodes(pair[0], pair[1], true));
         copy.append(note);
       }
       const amount = document.createElement('strong');
-      amount.textContent = engine.formatGrams(item.grams);
+      amount.append(...bilingualNodes(engine.formatGrams(item.grams), engine.formatGramsEn(item.grams)));
       row.append(copy, amount);
       target.append(row);
     });
@@ -297,13 +357,13 @@
       const copy = document.createElement('div');
       copy.className = 'method-copy';
       const title = document.createElement('h4');
-      title.textContent = `${step.icon} ${step.title}`;
+      title.append(...bilingualNodes(`${step.icon} ${step.title}`, step.titleEn));
       const text = document.createElement('p');
-      text.textContent = step.text;
+      text.append(...bilingualNodes(step.text, step.textEn));
       copy.append(title, text);
       const time = document.createElement('span');
       time.className = 'method-time';
-      time.textContent = `${step.minutes} 分鐘`;
+      time.append(...bilingualNodes(...ui.minutes(step.minutes)));
       row.append(number, copy, time);
       elements.methodList.append(row);
     });
@@ -319,56 +379,51 @@
     elements.progressTrack.setAttribute('aria-valuenow', String(currentStep + 1));
     elements.stepProgress.style.width = `${((currentStep + 1) / total) * 100}%`;
     elements.stepIcon.textContent = step.icon;
-    elements.stepTime.textContent = `約 ${step.minutes} 分鐘`;
-    elements.stepTitle.textContent = step.title;
-    elements.stepText.textContent = step.text;
+    setBilingual(elements.stepTime, ui.aboutMinutes(step.minutes), true);
+    setBilingual(elements.stepTitle, [step.title, step.titleEn]);
+    setBilingual(elements.stepText, [step.text, step.textEn]);
     elements.stepPrev.disabled = currentStep === 0;
     elements.stepNext.disabled = currentStep === total - 1;
   }
 
   function renderBudget(recipe) {
     const budget = recipe.budget;
-    elements.budgetTotal.textContent = engine.formatMoney(budget, budget.total);
-    elements.budgetCopy.textContent = `${recipe.servings} 人份，約每人 ${engine.formatMoney(budget, budget.perPerson)}。${budget.limit ? `你嘅上限係 ${engine.formatMoney(budget, budget.limit)}。` : ''}`;
+    const money = (value) => engine.formatMoney(budget, value);
+    elements.budgetTotal.textContent = money(budget.total);
+    setBilingual(elements.budgetCopy, ui.budgetCopy(recipe.servings, money(budget.perPerson), budget.limit ? money(budget.limit) : ''));
     elements.budgetResult.style.setProperty('border-left', budget.over ? '4px solid #b54637' : '4px solid #3b9b6b');
     elements.budgetTips.replaceChildren();
     if (budget.over) {
-      const lead = document.createElement('li');
-      lead.textContent = '估算超出預算，可以試下：';
-      elements.budgetTips.append(lead);
-      budget.substitutions.forEach((tip) => {
-        const item = document.createElement('li');
-        item.textContent = tip;
-        elements.budgetTips.append(item);
-      });
+      appendListItem(elements.budgetTips, ui.overBudget);
+      const english = budget.substitutionsEn || [];
+      budget.substitutions.forEach((tip, index) => appendListItem(elements.budgetTips, [tip, english[index]]));
     } else {
-      const item = document.createElement('li');
-      item.textContent = budget.limit ? '估算在預算內。' : '輸入預算上限就可以比較。';
-      elements.budgetTips.append(item);
+      appendListItem(elements.budgetTips, budget.limit ? ui.withinBudget : ui.enterBudgetLimit);
     }
-    elements.budgetDisclaimer.textContent = budget.disclaimer;
+    setBilingual(elements.budgetDisclaimer, [budget.disclaimer, budget.disclaimerEn]);
   }
 
   function renderSafety(recipe) {
     elements.safetyList.replaceChildren();
+    const temperatures = recipe.safety.temperatures || [];
+    const temperaturesEn = recipe.safety.temperaturesEn || [];
+    const warningsEn = recipe.safety.warningsEn || [];
     const items = [
-      ...recipe.safety.temperatures.map((text) => `用數碼溫度計量最厚位置：${text}。`),
-      ...recipe.safety.warnings
+      ...temperatures.map((text, index) => ui.thermometer(text, temperaturesEn[index])),
+      ...recipe.safety.warnings.map((text, index) => [text, warningsEn[index]])
     ];
-    if (!recipe.safety.temperatures.length) {
-      items.unshift('徹底煮熟食材；生熟食物、砧板同用具要分開。');
-    }
-    items.forEach((text) => {
-      const item = document.createElement('li');
-      item.textContent = text;
-      elements.safetyList.append(item);
-    });
+    if (!temperatures.length) items.unshift(ui.cookThoroughly);
+    items.forEach((pair) => appendListItem(elements.safetyList, pair));
     elements.safetySource.href = data.healthCanadaUrl;
   }
 
   function renderPersonal(recipe) {
     elements.favoriteButton.setAttribute('aria-pressed', String(Boolean(recipe.favorite)));
-    elements.favoriteButton.innerHTML = `<span aria-hidden="true">${recipe.favorite ? '♥' : '♡'}</span> ${recipe.favorite ? '已收藏' : '收藏'}`;
+    const heart = document.createElement('span');
+    heart.setAttribute('aria-hidden', 'true');
+    heart.textContent = recipe.favorite ? '♥' : '♡';
+    const label = recipe.favorite ? ui.favorited : ui.favorite;
+    elements.favoriteButton.replaceChildren(heart, ' ', ...bilingualNodes(label[0], label[1], true));
     elements.ratingRow.querySelectorAll('[data-rating]').forEach((button) => {
       const active = Number(button.dataset.rating) <= Number(recipe.rating || 0);
       button.classList.toggle('active', active);
@@ -383,18 +438,24 @@
     currentStep = 0;
     uploadedPhotoUrl = '';
     elements.photo.src = recipe.image;
-    elements.photo.alt = recipe.imageAlt;
-    elements.resultEyebrow.textContent = `${recipe.cuisine.label} · ${recipe.servings} 人份`;
-    elements.title.textContent = recipe.title;
-    elements.description.textContent = recipe.description;
-    elements.servingBadge.textContent = `${recipe.servings} 人份`;
-    elements.methodBadge.textContent = `${recipe.tool.short} · 約 ${recipe.estimatedMinutes} 分鐘`;
+    elements.photo.alt = plain([recipe.imageAlt, recipe.imageAltEn]);
+    const servings = ui.servings(recipe.servings);
+    const minutes = ui.aboutMinutes(recipe.estimatedMinutes);
+    elements.resultEyebrow.textContent = `${recipe.cuisine.label} · ${plain(servings)}`;
+    setBilingual(elements.title, [recipe.title, recipe.titleEn]);
+    setBilingual(elements.description, [recipe.description, recipe.descriptionEn]);
+    setBilingual(elements.servingBadge, servings, true);
+    setBilingual(
+      elements.methodBadge,
+      [`${recipe.tool.short} · ${minutes[0]}`, recipe.tool.shortEn ? `${recipe.tool.shortEn} · ${minutes[1]}` : ''],
+      true
+    );
     renderMeta(recipe);
     renderMeasuredList(elements.ingredientList, recipe.ingredients);
     renderMeasuredList(elements.seasoningList, recipe.seasonings);
     renderMethods(recipe);
     elements.timeWarning.hidden = !recipe.timeWarning;
-    elements.timeWarning.querySelector('p').textContent = recipe.timeWarning;
+    setBilingual(elements.timeWarning.querySelector('p'), [recipe.timeWarning, recipe.timeWarningEn]);
     renderVisualStep();
     renderBudget(recipe);
     renderSafety(recipe);
@@ -414,12 +475,15 @@
       }
       return recipe;
     } catch (error) {
-      elements.formError.textContent = error instanceof Error ? error.message : '未能生成食譜，請檢查輸入。';
+      const known = error instanceof Error && error.messageEn;
+      setBilingual(elements.formError, known ? [error.message, error.messageEn] : ui.generateFailed);
       elements.formError.hidden = false;
       elements.ingredients.focus();
       return null;
     }
   }
+
+  // Saved recipes --------------------------------------------------------------------------------
 
   function upsertCurrentRecipe(message) {
     if (!currentRecipe) return false;
@@ -429,9 +493,9 @@
     if (index >= 0) recipes.splice(index, 1);
     recipes.unshift(currentRecipe);
     if (!writeSavedRecipes(recipes)) return false;
-    elements.saveStatus.textContent = '已儲存';
+    setBilingual(elements.saveStatus, ui.saved, true);
     window.setTimeout(() => { elements.saveStatus.textContent = ''; }, 1800);
-    showToast(message || '食譜已儲存到「我的食譜」。');
+    showToast(message || ui.recipeSaved);
     return true;
   }
 
@@ -451,8 +515,9 @@
 
   function formatSavedDate(value) {
     const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return '日期不詳';
-    return new Intl.DateTimeFormat('zh-HK', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(date);
+    if (Number.isNaN(date.getTime())) return ui.unknownDate;
+    const options = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+    return [new Intl.DateTimeFormat('zh-HK', options).format(date), new Intl.DateTimeFormat('en', options).format(date)];
   }
 
   function renderSavedRecipes() {
@@ -465,7 +530,7 @@
       icon.setAttribute('aria-hidden', 'true');
       icon.textContent = '🍲';
       const text = document.createElement('p');
-      text.textContent = '未有已儲存食譜。生成一份食譜，再撳「儲存到我的食譜」。';
+      text.append(...bilingualNodes(...ui.emptySaved));
       empty.append(icon, text);
       elements.savedList.append(empty);
       return;
@@ -480,14 +545,24 @@
       image.alt = '';
       const copy = document.createElement('div');
       const title = document.createElement('h3');
-      title.textContent = `${recipe.favorite ? '♥ ' : ''}${recipe.title || '未命名食譜'}`;
+      const heart = recipe.favorite ? '♥ ' : '';
+      title.append(...bilingualNodes(
+        `${heart}${recipe.title || ui.untitled[0]}`,
+        recipe.title ? recipe.titleEn : ui.untitled[1]
+      ));
       const meta = document.createElement('p');
-      meta.textContent = `${recipe.servings || '?'} 人 · ${recipe.rating ? `${recipe.rating} 星 · ` : ''}${formatSavedDate(recipe.createdAt)}`;
+      const people = recipe.servings || '?';
+      const date = formatSavedDate(recipe.createdAt);
+      const stars = recipe.rating ? ui.stars(recipe.rating) : null;
+      meta.append(...bilingualNodes(
+        `${people} 人 · ${stars ? `${stars[0]} · ` : ''}${date[0]}`,
+        `${people} ${Number(people) === 1 ? 'person' : 'people'} · ${stars ? `${stars[1]} · ` : ''}${date[1] || date[0]}`
+      ));
       copy.append(title, meta);
       const actions = document.createElement('div');
       actions.className = 'saved-card-actions';
-      const load = createButton('', '打開', { 'data-action': 'load', 'data-id': recipe.id });
-      const remove = createButton('delete-button', '刪除', { 'data-action': 'delete', 'data-id': recipe.id });
+      const load = createButton('', ui.open, { 'data-action': 'load', 'data-id': recipe.id });
+      const remove = createButton('delete-button', ui.remove, { 'data-action': 'delete', 'data-id': recipe.id });
       actions.append(load, remove);
       card.append(image, copy, actions);
       elements.savedList.append(card);
@@ -529,6 +604,8 @@
     else elements.savedDialog.removeAttribute('open');
   }
 
+  // Events ---------------------------------------------------------------------------------------
+
   elements.form.addEventListener('submit', (event) => {
     event.preventDefault();
     generate({ scroll: true });
@@ -547,7 +624,7 @@
     const id = button.dataset.tool;
     if (selectedTools.has(id)) {
       if (selectedTools.size === 1) {
-        showToast('最少要保留一樣廚具。');
+        showToast(ui.keepOneTool);
         return;
       }
       selectedTools.delete(id);
@@ -581,7 +658,7 @@
     if (!currentRecipe) return;
     currentRecipe.favorite = !currentRecipe.favorite;
     renderPersonal(currentRecipe);
-    upsertCurrentRecipe(currentRecipe.favorite ? '已收藏呢份食譜。' : '已取消收藏，食譜仍然保留。');
+    upsertCurrentRecipe(currentRecipe.favorite ? ui.favoriteAdded : ui.favoriteRemoved);
   });
 
   elements.ratingRow.addEventListener('click', (event) => {
@@ -616,13 +693,15 @@
       renderRecipe(recipe);
       closeSavedDialog();
       elements.result.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      showToast('已打開已儲存食譜。');
+      showToast(ui.savedOpened);
       return;
     }
-    if (button.dataset.action === 'delete' && window.confirm(`確定刪除「${recipe.title}」？`)) {
+    if (button.dataset.action === 'delete') {
+      const [zh, en] = ui.confirmDelete(recipe.title, recipe.titleEn);
+      if (!window.confirm(en ? `${zh}\n${en}` : zh)) return;
       writeSavedRecipes(recipes.filter((item) => item.id !== recipe.id));
       renderSavedRecipes();
-      showToast('食譜已刪除。');
+      showToast(ui.recipeDeleted);
     }
   });
 
@@ -630,12 +709,12 @@
     const file = elements.photoUpload.files && elements.photoUpload.files[0];
     if (!file) return;
     if (!file.type.startsWith('image/')) {
-      showToast('請選擇圖片檔案。');
+      showToast(ui.chooseImage);
       elements.photoUpload.value = '';
       return;
     }
     if (file.size > 6 * 1024 * 1024) {
-      showToast('圖片太大，請選擇 6 MB 以下檔案。');
+      showToast(ui.imageTooLarge);
       elements.photoUpload.value = '';
       return;
     }
@@ -643,8 +722,8 @@
     reader.addEventListener('load', () => {
       uploadedPhotoUrl = String(reader.result || '');
       elements.photo.src = uploadedPhotoUrl;
-      elements.photo.alt = '你上載的成品實拍相片';
-      showToast('實拍相只喺今次頁面預覽，不會上載或儲存。');
+      elements.photo.alt = plain(ui.uploadedPhotoAlt);
+      showToast(ui.photoPreviewOnly);
     });
     reader.readAsDataURL(file);
   });
@@ -666,7 +745,7 @@
     syncChoiceButtons();
     syncModes();
     generate({ scroll: false });
-    showToast('已載入廣東菜示例。');
+    showToast(ui.exampleLoaded);
   });
 
   window.addEventListener('storage', (event) => {

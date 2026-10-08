@@ -174,5 +174,152 @@ test('browser scripts have valid JavaScript syntax', () => {
   });
 });
 
+// Cantonese + English -----------------------------------------------------------------------------
+
+const CJK = /[㐀-鿿]/;
+
+test('every cuisine, flavor and tool has English text and no stray Chinese in it', () => {
+  data.cuisines.forEach((cuisine) => {
+    assert.ok(cuisine.shortEn && cuisine.noteEn, cuisine.id);
+    assert.doesNotMatch(cuisine.shortEn + cuisine.noteEn, CJK, cuisine.id);
+  });
+  data.flavors.forEach((flavor) => {
+    assert.ok(flavor.labelEn && flavor.descriptionEn, flavor.id);
+    assert.doesNotMatch(flavor.labelEn + flavor.descriptionEn, CJK, flavor.id);
+    flavor.additions.forEach(([zh, grams, en]) => {
+      assert.ok(en && grams > 0, `${flavor.id}: ${zh}`);
+      assert.doesNotMatch(en, CJK, `${flavor.id}: ${zh}`);
+    });
+  });
+  data.tools.forEach((tool) => {
+    assert.ok(tool.shortEn && tool.phraseEn, tool.id);
+    assert.doesNotMatch(tool.shortEn + tool.phraseEn, CJK, tool.id);
+  });
+});
+
+test('glossary entries are complete and no spelling belongs to two foods', () => {
+  assert.ok(data.glossary.length >= 100);
+  const owners = new Map();
+  data.glossary.forEach((entry) => {
+    assert.match(entry.zh, CJK, entry.en);
+    assert.ok(entry.en, entry.zh);
+    assert.doesNotMatch(entry.en, CJK, entry.zh);
+    [entry.zh, entry.en, ...entry.aliases].forEach((spelling) => {
+      const key = engine.normalize(spelling);
+      if (owners.has(key)) assert.equal(owners.get(key), entry, `"${spelling}" is used by two glossary entries`);
+      owners.set(key, entry);
+    });
+  });
+});
+
+test('glossary translates known foods in both directions and never guesses', () => {
+  assert.equal(engine.nameVariants('雞腿肉').en, 'chicken thigh');
+  assert.equal(engine.nameVariants('Chicken Thighs').zh, '雞腿肉');
+  assert.equal(engine.nameVariants('Chicken Thighs').en, 'Chicken Thighs');
+  assert.equal(engine.nameVariants('牛油果').en, 'avocado');
+  assert.equal(engine.nameVariants('dragon fruit').zh, '');
+  assert.equal(engine.nameVariants('龍珠果').en, '');
+  assert.equal(engine.nameVariants('pepper').zh, '', 'bare "pepper" is ambiguous');
+});
+
+test('English-typed foods get Cantonese names and Cantonese-typed foods get English names', () => {
+  const english = recipe({ ingredients: 'chicken thigh, rice, choy sum', seasonings: 'soy sauce, ginger, scallions' });
+  assert.deepEqual(english.ingredients.map((item) => item.nameZh), ['雞腿肉', '白飯', '菜心']);
+  assert.match(english.title, /雞腿肉/);
+  assert.match(english.titleEn, /Chicken Thigh/);
+  assert.match(english.steps[0].text, /雞腿肉、白飯、菜心/);
+  const cantonese = recipe();
+  assert.deepEqual(cantonese.ingredients.map((item) => item.nameEn), ['chicken thigh', 'steamed rice', 'choy sum']);
+  assert.match(cantonese.steps[0].textEn, /chicken thigh, steamed rice and choy sum/);
+});
+
+test('the same seasoning typed in English is not suggested a second time', () => {
+  const result = recipe({ seasonings: 'soy sauce, ginger, scallions' });
+  assert.equal(result.seasonings.length, 3);
+  assert.ok(result.seasonings.every((item) => !item.suggested));
+});
+
+test('suggested seasonings read naturally in English sentences', () => {
+  const result = recipe({ seasonings: 'soy sauce, ginger, scallions', flavor: 'garlic-herb' });
+  assert.match(result.steps[0].textEn, /scallions and garlic\)/);
+  assert.equal(result.seasonings.find((item) => item.suggested).nameEn, 'Garlic');
+});
+
+test('every recipe has English beside every Cantonese text, for every tool', () => {
+  ['wok', 'rice-cooker', 'steamer', 'pot', 'oven', 'air-fryer'].forEach((tool) => {
+    const result = recipe({ tools: [tool], timeLimit: 10, budgetLimit: 1, dietaryNeeds: 'vegan, gluten-free' });
+    const english = [
+      result.titleEn, result.descriptionEn, result.imageAltEn, result.timeWarningEn,
+      ...result.safety.temperaturesEn, ...result.safety.warningsEn,
+      ...result.budget.substitutionsEn, result.budget.disclaimerEn
+    ];
+    english.forEach((text) => {
+      assert.ok(text, `${tool}: empty English text`);
+      assert.doesNotMatch(text, CJK, `${tool}: ${text}`);
+      assert.doesNotMatch(text, /undefined|\$\{|\[object/, `${tool}: ${text}`);
+    });
+    result.steps.forEach((step) => {
+      assert.ok(step.titleEn && step.textEn, `${tool} step ${step.number}`);
+      assert.doesNotMatch(step.titleEn + step.textEn, CJK, `${tool} step ${step.number}`);
+      assert.doesNotMatch(step.titleEn + step.textEn, /undefined|\$\{|\[object/, `${tool} step ${step.number}`);
+    });
+    assert.equal(result.safety.warningsEn.length, result.safety.warnings.length);
+    assert.equal(result.safety.temperaturesEn.length, result.safety.temperatures.length);
+    assert.equal(result.budget.substitutionsEn.length, result.budget.substitutions.length);
+    assert.ok(result.safety.warnings.length >= 3, 'vegan + gluten-free + general warning');
+  });
+});
+
+test('unknown foods are shown as typed instead of being mistranslated', () => {
+  const result = recipe({ ingredients: '龍珠果, dragon fruit' });
+  assert.equal(result.ingredients[0].nameEn, '');
+  assert.equal(result.ingredients[1].nameZh, '');
+  assert.match(result.steps[0].textEn, /龍珠果 and dragon fruit/);
+});
+
+test('the empty-input error and the gram labels are bilingual', () => {
+  assert.throws(
+    () => recipe({ ingredients: '  ' }),
+    (error) => /最少輸入一種食材/.test(error.message) && error.messageEn === 'Please enter at least one ingredient.'
+  );
+  assert.equal(engine.formatGrams(260), '260 克');
+  assert.equal(engine.formatGramsEn(260), '260 g');
+  assert.equal(engine.formatGramsEn(1.5), '1.5 g');
+});
+
+test('every interface message is a complete Cantonese + English pair', () => {
+  const keys = Object.keys(data.ui);
+  assert.ok(keys.length >= 30);
+  keys.forEach((key) => {
+    const value = data.ui[key];
+    const pair = typeof value === 'function' ? value(2, 'x', 'y') : value;
+    assert.ok(Array.isArray(pair) && pair.length === 2 && pair[0] && pair[1], key);
+    assert.match(pair[0], CJK, key);
+    assert.doesNotMatch(pair[1], CJK, key);
+  });
+  assert.deepEqual(data.ui.servings(1), ['1 人份', '1 serving']);
+  assert.deepEqual(data.ui.servings(3), ['3 人份', '3 servings']);
+});
+
+test('app.js only uses interface messages that exist', () => {
+  const app = fs.readFileSync(path.join(root, 'dist', 'app.js'), 'utf8');
+  const used = new Set([...app.matchAll(/\bui\.([A-Za-z]+)/g)].map((match) => match[1]));
+  assert.ok(used.size >= 20);
+  used.forEach((key) => assert.ok(key in data.ui, `ui.${key} is missing from recipe-data.js`));
+});
+
+test('page text is bilingual: each English span follows a Cantonese span and is marked lang="en"', () => {
+  const html = fs.readFileSync(path.join(root, 'dist', 'index.html'), 'utf8');
+  const english = [...html.matchAll(/<span class="en[^"]*"/g)].length;
+  const pairs = [...html.matchAll(/<span class="zh">[^<]*<\/span>\s*<span class="en(?: inline)?" lang="en">[^<]+<\/span>/g)].length;
+  assert.ok(english >= 60, `only ${english} English spans`);
+  assert.equal(pairs, english, 'every English span must directly follow a Cantonese span and carry lang="en"');
+  [...html.matchAll(/<span class="en(?: inline)?" lang="en">([^<]+)<\/span>/g)].forEach((match) => {
+    assert.doesNotMatch(match[1], CJK, match[1]);
+  });
+  assert.match(html, /<title>[^<]*What's for dinner\?/);
+  assert.match(html, /name="description" content="[^"]*Enter your ingredients/);
+});
+
 process.stdout.write(`\nRESULT: ${passed} passed, ${failed} failed\n`);
 if (failed) process.exitCode = 1;
