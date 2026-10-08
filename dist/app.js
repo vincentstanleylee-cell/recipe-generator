@@ -3,7 +3,9 @@
 
   const data = window.RecipeData;
   const engine = window.RecipeEngine;
-  if (!data || !engine) throw new Error('Recipe data and engine failed to load.');
+  const libraryData = window.RecipeLibraryData;
+  const library = window.RecipeLibrary;
+  if (!data || !engine || !libraryData || !library) throw new Error('Recipe data and engine failed to load.');
 
   const ui = data.ui;
   const CJK = /[㐀-鿿]/;
@@ -34,12 +36,15 @@
     loadExample: $('#load-example'),
     result: $('#recipe-result'),
     photo: $('#dish-photo'),
+    photoLabel: $('#photo-label'),
     photoUpload: $('#photo-upload'),
     resultEyebrow: $('#result-eyebrow'),
     title: $('#recipe-title'),
     description: $('#recipe-description'),
     metaRow: $('#meta-row'),
+    sourceNotice: $('#source-notice'),
     timeWarning: $('#time-warning'),
+    measurementLabel: $('#measurement-label'),
     servingBadge: $('#serving-badge'),
     methodBadge: $('#method-badge'),
     ingredientList: $('#ingredient-list'),
@@ -67,6 +72,19 @@
     notes: $('#recipe-notes'),
     saveRecipe: $('#save-recipe'),
     saveStatus: $('#save-status'),
+    openLibrary: $('#open-library'),
+    libraryCountBadge: $('#library-count-badge'),
+    libraryDialog: $('#library-dialog'),
+    closeLibrary: $('#close-library'),
+    librarySearch: $('#library-search'),
+    libraryCuisine: $('#library-cuisine'),
+    libraryServings: $('#library-servings'),
+    libraryCustomServingWrap: $('#library-custom-serving-wrap'),
+    libraryCustomServing: $('#library-custom-serving'),
+    showDemoRecipes: $('#show-demo-recipes'),
+    libraryResultCount: $('#library-result-count'),
+    libraryGrid: $('#library-grid'),
+    libraryLoadMore: $('#library-load-more'),
     openSaved: $('#open-saved'),
     savedCount: $('#saved-count'),
     savedDialog: $('#saved-dialog'),
@@ -81,6 +99,7 @@
   let currentStep = 0;
   let uploadedPhotoUrl = '';
   let toastTimer = null;
+  let libraryVisibleLimit = 24;
 
   // Bilingual text -------------------------------------------------------------------------------
   // Cantonese first, English second. A pair is [Cantonese, English]; the English part may be empty
@@ -291,7 +310,7 @@
 
   function syncModes() {
     elements.budgetControls.hidden = !elements.budgetMode.checked;
-    elements.budgetResult.hidden = !elements.budgetMode.checked;
+    elements.budgetResult.hidden = !elements.budgetMode.checked || !currentRecipe || !currentRecipe.budget;
     elements.visualCook.hidden = !elements.visualMode.checked;
   }
 
@@ -300,12 +319,20 @@
   function renderMeta(recipe) {
     elements.metaRow.replaceChildren();
     const minutes = ui.aboutMinutes(recipe.estimatedMinutes);
-    const chips = [
-      [`${recipe.flavor.icon} ${recipe.flavor.label}`, recipe.flavor.labelEn],
-      [`${recipe.tool.icon} ${recipe.tool.short}`, recipe.tool.shortEn],
-      [`⏱ ${minutes[0]}`, minutes[1]],
-      [`⚖ ${ui.allInGrams[0]}`, ui.allInGrams[1]]
-    ];
+    const chips = recipe.importedMeta
+      ? [
+        [`${recipe.flavor.icon} ${recipe.flavor.label}`, recipe.flavor.labelEn],
+        [`${recipe.tool.icon} ${recipe.tool.short}`, recipe.tool.shortEn],
+        [`⏱ ${minutes[0]}`, minutes[1]],
+        ['⚖ 克 / 毫升', 'g / ml'],
+        [`ⓘ ${recipe.importedMeta.status[0]}`, recipe.importedMeta.status[1]]
+      ]
+      : [
+        [`${recipe.flavor.icon} ${recipe.flavor.label}`, recipe.flavor.labelEn],
+        [`${recipe.tool.icon} ${recipe.tool.short}`, recipe.tool.shortEn],
+        [`⏱ ${minutes[0]}`, minutes[1]],
+        [`⚖ ${ui.allInGrams[0]}`, ui.allInGrams[1]]
+      ];
     chips.forEach(([zh, en]) => {
       const chip = document.createElement('span');
       chip.className = 'meta-chip';
@@ -341,7 +368,17 @@
         copy.append(note);
       }
       const amount = document.createElement('strong');
-      amount.append(...bilingualNodes(engine.formatGrams(item.grams), engine.formatGramsEn(item.grams)));
+      if (Object.prototype.hasOwnProperty.call(item, 'quantity')) {
+        if (item.quantity == null) {
+          amount.textContent = item.sourceAmountExact || '—';
+        } else {
+          const value = Number.isInteger(item.quantity) ? item.quantity : Number(item.quantity).toFixed(1);
+          const unitZh = item.unit === 'g' ? '克' : item.unit === 'ml' ? '毫升' : item.unit;
+          amount.append(...bilingualNodes(`${value} ${unitZh}`, `${value} ${item.unit}`, true));
+        }
+      } else {
+        amount.append(...bilingualNodes(engine.formatGrams(item.grams), engine.formatGramsEn(item.grams)));
+      }
       row.append(copy, amount);
       target.append(row);
     });
@@ -363,7 +400,8 @@
       copy.append(title, text);
       const time = document.createElement('span');
       time.className = 'method-time';
-      time.append(...bilingualNodes(...ui.minutes(step.minutes)));
+      if (Number.isFinite(step.minutes)) time.append(...bilingualNodes(...ui.minutes(step.minutes)));
+      else time.hidden = true;
       row.append(number, copy, time);
       elements.methodList.append(row);
     });
@@ -379,7 +417,7 @@
     elements.progressTrack.setAttribute('aria-valuenow', String(currentStep + 1));
     elements.stepProgress.style.width = `${((currentStep + 1) / total) * 100}%`;
     elements.stepIcon.textContent = step.icon;
-    setBilingual(elements.stepTime, ui.aboutMinutes(step.minutes), true);
+    setBilingual(elements.stepTime, Number.isFinite(step.minutes) ? ui.aboutMinutes(step.minutes) : ['每步時間未提供', 'Per-step time not provided'], true);
     setBilingual(elements.stepTitle, [step.title, step.titleEn]);
     setBilingual(elements.stepText, [step.text, step.textEn]);
     elements.stepPrev.disabled = currentStep === 0;
@@ -388,6 +426,10 @@
 
   function renderBudget(recipe) {
     const budget = recipe.budget;
+    if (!budget) {
+      elements.budgetResult.hidden = true;
+      return;
+    }
     const money = (value) => engine.formatMoney(budget, value);
     elements.budgetTotal.textContent = money(budget.total);
     setBilingual(elements.budgetCopy, ui.budgetCopy(recipe.servings, money(budget.perPerson), budget.limit ? money(budget.limit) : ''));
@@ -408,8 +450,9 @@
     const temperatures = recipe.safety.temperatures || [];
     const temperaturesEn = recipe.safety.temperaturesEn || [];
     const warningsEn = recipe.safety.warningsEn || [];
+    const trimTerminalPunctuation = (text) => String(text || '').replace(/[。.!]+$/g, '');
     const items = [
-      ...temperatures.map((text, index) => ui.thermometer(text, temperaturesEn[index])),
+      ...temperatures.map((text, index) => ui.thermometer(trimTerminalPunctuation(text), trimTerminalPunctuation(temperaturesEn[index]))),
       ...recipe.safety.warnings.map((text, index) => [text, warningsEn[index]])
     ];
     if (!temperatures.length) items.unshift(ui.cookThoroughly);
@@ -439,9 +482,25 @@
     uploadedPhotoUrl = '';
     elements.photo.src = recipe.image;
     elements.photo.alt = plain([recipe.imageAlt, recipe.imageAltEn]);
+    if (recipe.importedMeta) {
+      setBilingual(elements.photoLabel, ['成品圖片 · 未有授權相片', 'Finished dish · no licensed photo']);
+      setBilingual(elements.measurementLabel, ['保留克或毫升', 'Source units: g or ml'], true);
+      const incomplete = recipe.importedMeta.incompleteEnglishMethod
+        ? [' 英文步驟比廣東話版本少；畫面只顯示來源有提供嘅內容。', ' The English method has fewer steps than the Cantonese version; only supplied content is shown.']
+        : ['', ''];
+      setBilingual(elements.sourceNotice.querySelector('p'), [
+        `${recipe.importedMeta.notice[0]}${incomplete[0]}`,
+        `${recipe.importedMeta.notice[1]}${incomplete[1]}`
+      ]);
+      elements.sourceNotice.hidden = false;
+    } else {
+      setBilingual(elements.photoLabel, ['成品圖片 · 擺盤示意', 'Finished dish · plating example']);
+      setBilingual(elements.measurementLabel, [ui.allInGrams[0], ui.allInGrams[1]], true);
+      elements.sourceNotice.hidden = true;
+    }
     const servings = ui.servings(recipe.servings);
     const minutes = ui.aboutMinutes(recipe.estimatedMinutes);
-    elements.resultEyebrow.textContent = `${recipe.cuisine.label} · ${plain(servings)}`;
+    elements.resultEyebrow.textContent = `${plain([recipe.cuisine.label, recipe.cuisine.labelEn])} · ${plain(servings)}`;
     setBilingual(elements.title, [recipe.title, recipe.titleEn]);
     setBilingual(elements.description, [recipe.description, recipe.descriptionEn]);
     setBilingual(elements.servingBadge, servings, true);
@@ -481,6 +540,133 @@
       elements.ingredients.focus();
       return null;
     }
+  }
+
+  // Imported recipe library ---------------------------------------------------------------------
+
+  function getLibraryServings() {
+    if (elements.libraryServings.value !== 'custom') return Number(elements.libraryServings.value);
+    return engine.clamp(Math.round(Number(elements.libraryCustomServing.value) || 1), 1, 30);
+  }
+
+  function populateLibraryControls() {
+    library.cuisineOptions(libraryData.recipes).forEach((cuisine) => {
+      const option = document.createElement('option');
+      option.value = cuisine;
+      option.textContent = cuisine === 'Cantonese' ? '廣東菜 · Cantonese' : cuisine;
+      elements.libraryCuisine.append(option);
+    });
+    elements.libraryCountBadge.textContent = String(libraryData.counts.visibleByDefault);
+  }
+
+  function librarySearchResults() {
+    return library.search(libraryData.recipes, {
+      query: elements.librarySearch.value,
+      cuisine: elements.libraryCuisine.value,
+      includeDemos: elements.showDemoRecipes.checked
+    });
+  }
+
+  function renderLibraryCard(record) {
+    const status = library.statusFor(record);
+    const scope = library.scopeOf(record);
+    const card = document.createElement('article');
+    card.className = `library-card library-card-${scope}`;
+
+    const visual = document.createElement('div');
+    visual.className = 'library-card-visual';
+    visual.setAttribute('aria-hidden', 'true');
+    visual.textContent = scope === 'cantonese_editorial' ? '🥢' : '🧪';
+
+    const content = document.createElement('div');
+    content.className = 'library-card-content';
+    const top = document.createElement('div');
+    top.className = 'library-card-top';
+    const id = document.createElement('span');
+    id.className = 'library-id';
+    id.textContent = record.id;
+    const badge = document.createElement('span');
+    badge.className = `library-status library-status-${scope}`;
+    badge.append(...bilingualNodes(status.short[0], status.short[1], true));
+    top.append(id, badge);
+
+    const title = document.createElement('h3');
+    title.append(...bilingualNodes(record.title_zh_hant, record.title_en));
+
+    const meta = document.createElement('p');
+    meta.className = 'library-card-meta';
+    const totalMinutes = Number(record.total_minutes) || Number(record.prep_minutes || 0) + Number(record.cook_minutes || 0);
+    meta.append(...bilingualNodes(
+      `${record.flavor_name_zh_hant || ''} · ${record.servings} 人 · ${totalMinutes} 分鐘`,
+      `${record.flavor_name_en || ''} · ${record.servings} servings · ${totalMinutes} min`
+    ));
+
+    const mainItems = (record.ingredients || []).filter((item) => item.role !== 'seasoning').slice(0, 4);
+    const preview = document.createElement('p');
+    preview.className = 'library-card-ingredients';
+    preview.append(...bilingualNodes(
+      `材料：${mainItems.map((item) => item.name_zh_hant || item.name).join('、')}`,
+      `Ingredients: ${mainItems.map((item) => item.name_en || item.name).join(', ')}`
+    ));
+
+    const open = createButton('primary-button compact library-open', ['開啟食譜', 'Open recipe'], {
+      'data-library-id': record.id
+    });
+    content.append(top, title, meta, preview, open);
+    card.append(visual, content);
+    return card;
+  }
+
+  function renderLibrary(options) {
+    if (options && options.reset) libraryVisibleLimit = 24;
+    const results = librarySearchResults();
+    const shown = results.slice(0, libraryVisibleLimit);
+    elements.libraryGrid.replaceChildren(...shown.map(renderLibraryCard));
+    setBilingual(elements.libraryResultCount, [
+      `搵到 ${results.length} 款；而家顯示 ${shown.length} 款`,
+      `${results.length} found; showing ${shown.length}`
+    ], true);
+    elements.libraryLoadMore.hidden = shown.length >= results.length;
+    if (!results.length) {
+      const empty = document.createElement('div');
+      empty.className = 'empty-state library-empty';
+      const icon = document.createElement('span');
+      icon.setAttribute('aria-hidden', 'true');
+      icon.textContent = '🔎';
+      const copy = document.createElement('p');
+      copy.append(...bilingualNodes('未搵到相符食譜，試吓其他名稱或材料。', 'No matching recipe. Try another title or ingredient.'));
+      empty.append(icon, copy);
+      elements.libraryGrid.append(empty);
+    }
+  }
+
+  function openLibraryDialog() {
+    renderLibrary({ reset: true });
+    if (typeof elements.libraryDialog.showModal === 'function') elements.libraryDialog.showModal();
+    else elements.libraryDialog.setAttribute('open', '');
+    window.setTimeout(() => elements.librarySearch.focus(), 0);
+  }
+
+  function closeLibraryDialog() {
+    if (typeof elements.libraryDialog.close === 'function') elements.libraryDialog.close();
+    else elements.libraryDialog.removeAttribute('open');
+  }
+
+  function openLibraryRecipe(id) {
+    const record = libraryData.recipes.find((item) => item.id === id);
+    if (!record) return;
+    const servings = getLibraryServings();
+    const recipe = library.toAppRecipe(record, servings);
+    if (servings <= 6) elements.servings.value = String(servings);
+    else {
+      elements.servings.value = 'custom';
+      elements.customServing.value = String(servings);
+    }
+    elements.customServingWrap.hidden = elements.servings.value !== 'custom';
+    renderRecipe(recipe);
+    closeLibraryDialog();
+    elements.result.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    showToast(['已開啟匯入食譜', 'Imported recipe opened']);
   }
 
   // Saved recipes --------------------------------------------------------------------------------
@@ -675,6 +861,30 @@
 
   elements.saveRecipe.addEventListener('click', () => upsertCurrentRecipe());
 
+  elements.openLibrary.addEventListener('click', openLibraryDialog);
+  elements.closeLibrary.addEventListener('click', closeLibraryDialog);
+  elements.libraryDialog.addEventListener('click', (event) => {
+    if (event.target === elements.libraryDialog) closeLibraryDialog();
+  });
+  elements.librarySearch.addEventListener('input', () => renderLibrary({ reset: true }));
+  elements.libraryCuisine.addEventListener('change', () => renderLibrary({ reset: true }));
+  elements.showDemoRecipes.addEventListener('change', () => renderLibrary({ reset: true }));
+  elements.libraryServings.addEventListener('change', () => {
+    elements.libraryCustomServingWrap.hidden = elements.libraryServings.value !== 'custom';
+    if (elements.libraryServings.value === 'custom') elements.libraryCustomServing.focus();
+  });
+  elements.libraryCustomServing.addEventListener('change', () => {
+    elements.libraryCustomServing.value = String(getLibraryServings());
+  });
+  elements.libraryGrid.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-library-id]');
+    if (button) openLibraryRecipe(button.dataset.libraryId);
+  });
+  elements.libraryLoadMore.addEventListener('click', () => {
+    libraryVisibleLimit += 24;
+    renderLibrary();
+  });
+
   elements.openSaved.addEventListener('click', openSavedDialog);
   elements.closeSaved.addEventListener('click', closeSavedDialog);
 
@@ -753,6 +963,7 @@
   });
 
   populateControls();
+  populateLibraryControls();
   restoreDraft();
   updateSavedCount();
   generate({ scroll: false });

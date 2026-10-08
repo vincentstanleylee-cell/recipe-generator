@@ -5,6 +5,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const data = require('../dist/recipe-data.js');
 const engine = require('../dist/recipe-engine.js');
+const libraryData = require('../dist/recipe-library-data.js');
+const library = require('../dist/recipe-library.js');
 
 const root = path.resolve(__dirname, '..');
 let passed = 0;
@@ -138,12 +140,71 @@ test('all core datasets have unique IDs', () => {
   });
 });
 
+test('imported library contains 1,000 unique records with safe default visibility', () => {
+  assert.equal(libraryData.recipes.length, 1000);
+  assert.equal(new Set(libraryData.recipes.map((record) => record.id)).size, 1000);
+  assert.deepEqual(libraryData.counts, {
+    total: 1000,
+    visibleByDefault: 100,
+    cantoneseEditorial: 100,
+    legacyDemo: 100,
+    syntheticDemo: 800
+  });
+  assert.ok(libraryData.recipes.every((record) => record.test_kitchen_validated === false));
+  assert.ok(libraryData.recipes.every((record) => record.ready_to_cook === false));
+  assert.ok(libraryData.recipes.every((record) => record.image_url === null));
+});
+
+test('Cantonese editorial source overrides matching master IDs without duplicates', () => {
+  const record = libraryData.recipes.find((item) => item.id === 'RC-0101');
+  assert.equal(record.title_en, 'Crispy roast pork belly');
+  assert.equal(record._codex_import.scope, 'cantonese_editorial');
+  assert.equal(record._codex_import.source_file, 'gemini cantonese_100_recipes.txt');
+  assert.equal(record._codex_import.production_visible, true);
+  assert.equal(record.steps_zh_hant.length, 5);
+  assert.equal(record.steps_en.length, 4);
+});
+
+test('legacy and synthetic demo recipes stay hidden until explicitly included', () => {
+  const normal = library.search(libraryData.recipes, { query: '', cuisine: 'all', includeDemos: false });
+  const all = library.search(libraryData.recipes, { query: '', cuisine: 'all', includeDemos: true });
+  assert.equal(normal.length, 100);
+  assert.equal(all.length, 1000);
+  assert.ok(normal.every((record) => record._codex_import.scope === 'cantonese_editorial'));
+  assert.equal(all.find((record) => record.id === 'RC-0001')._codex_import.scope, 'legacy_demo');
+  assert.equal(all.find((record) => record.id === 'RC-0201')._codex_import.scope, 'synthetic_demo');
+});
+
+test('library search matches supplied Cantonese and English content', () => {
+  assert.ok(library.search(libraryData.recipes, { query: '豉油雞' }).some((record) => record.id === 'RC-0103'));
+  assert.ok(library.search(libraryData.recipes, { query: 'soy sauce chicken' }).some((record) => record.id === 'RC-0103'));
+  assert.equal(library.search(libraryData.recipes, { query: 'RC-0001' }).length, 0);
+  assert.equal(library.search(libraryData.recipes, { query: 'RC-0001', includeDemos: true }).length, 1);
+});
+
+test('opening an imported recipe scales g and ml without inventing missing data', () => {
+  const source = libraryData.recipes.find((record) => record.id === 'RC-0101');
+  const opened = library.toAppRecipe(source, 2, { createdAt: '2026-10-08T00:00:00.000Z' });
+  assert.equal(opened.servings, 2);
+  assert.equal(opened.ingredients[0].quantity, 400);
+  assert.equal(opened.ingredients[0].unit, 'g');
+  assert.equal(opened.seasonings.find((item) => item.nameEn === 'rose wine').quantity, 7.5);
+  assert.equal(opened.budget, null);
+  assert.equal(opened.image, 'assets/recipe-placeholder.svg');
+  assert.equal(opened.importedMeta.testKitchenValidated, false);
+  assert.equal(opened.importedMeta.readyToCook, false);
+  assert.equal(opened.importedMeta.incompleteEnglishMethod, true);
+  assert.equal(opened.steps[4].textEn, '');
+});
+
 test('browser document is a complete HTML page', () => {
   const html = fs.readFileSync(path.join(root, 'dist', 'index.html'), 'utf8');
   assert.match(html, /^<!doctype html>/i);
   assert.match(html, /<html\s+lang="zh-Hant-HK">/i);
   assert.match(html, /<script src="recipe-data\.js"><\/script>/);
   assert.match(html, /<script src="recipe-engine\.js"><\/script>/);
+  assert.match(html, /<script src="recipe-library-data\.js"><\/script>/);
+  assert.match(html, /<script src="recipe-library\.js"><\/script>/);
   assert.match(html, /<script src="app\.js"><\/script>/);
 });
 
@@ -168,7 +229,7 @@ test('every local static reference exists', () => {
 });
 
 test('browser scripts have valid JavaScript syntax', () => {
-  ['recipe-data.js', 'recipe-engine.js', 'app.js'].forEach((file) => {
+  ['recipe-data.js', 'recipe-engine.js', 'recipe-library-data.js', 'recipe-library.js', 'app.js'].forEach((file) => {
     const source = fs.readFileSync(path.join(root, 'dist', file), 'utf8');
     assert.doesNotThrow(() => new Function(source), file);
   });

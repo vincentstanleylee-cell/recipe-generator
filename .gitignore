@@ -3,6 +3,8 @@
 
 !/.gitignore
 !/.env.example
+!/.openai/
+!/.openai/hosting.json
 !/README.md
 !/PROJECT_AUDIT.md
 !/START.bat
@@ -13,6 +15,10 @@
 !/dist/**
 !/tests/
 !/tests/**
+!/tools/
+!/tools/**
+!/reports/
+!/reports/**
 
 # Safety net (keep last): never publish secrets or junk, even inside allowed folders.
 .env

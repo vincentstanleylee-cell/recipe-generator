@@ -22,13 +22,16 @@ Or open `dist/index.html` in a modern browser.
 - 12 flavor profiles
 - Wok, rice cooker, steamer, pot, oven, and air-fryer methods
 - Serving adjustment for 1–6 people or a custom 1–30 people
-- All displayed quantities in grams
+- Generated-recipe quantities in grams; imported source recipes preserve grams or millilitres
 - Tool-specific, ingredient-aware cooking steps
 - Time-limit checks and warnings
 - Offline budget estimates in CAD, HKD, USD, EUR, GBP, or AUD
 - Finished-dish presentation photos and private local photo preview
 - Visual step-by-step cooking mode
 - Favorites, 1–5 ratings, notes, and saved recipes using browser local storage
+- Searchable imported library with 1,000 unique bilingual records
+- 100 Cantonese editorial recipes visible by default; 900 unverified demo records require an explicit opt-in
+- Imported recipes scale from 1–6 people or a custom 1–30 people while preserving g/mL units
 - Basic dietary/allergy conflict warnings
 - Health Canada cooking-temperature guidance
 - Responsive light/dark interface
@@ -47,12 +50,27 @@ The application runs entirely in the browser. It makes no API or network request
 
 Deleting browser site data will delete saved recipes. Different browsers and devices do not share recipes.
 
+## Imported recipe library
+
+Open **食譜庫 · Recipe library** in the header to search by recipe ID, title, cuisine, flavor, ingredient or seasoning. The 100 Cantonese editorial records (RC-0101–RC-0200) are shown first. They are clearly labeled as editorial and not independently cook-tested.
+
+The supplied corrected 200-record bundle was not present in this workspace. To avoid pretending that unverified data is production-ready, the other 900 records are hidden until the user deliberately enables the demo checkbox. This includes 100 legacy master records and 800 synthetic flavor variations. Imported records have no licensed photos, so the app displays an honest placeholder and still allows a private local photo preview.
+
+The generated browser artifact is deterministic and ID-keyed. If both source files are present at the project root, rebuild it with:
+
+```powershell
+npm run import:recipes
+```
+
+See `reports/recipe_import_report.md` for source hashes, record counts, collision handling and remaining review work.
+
 ## Important limitations
 
 - This is a deterministic rules-based MVP, not a chef or AI model. It generates a practical starting point rather than guaranteeing culinary perfection.
 - Inferred gram amounts are estimates. Explicit gram amounts entered by the user are preserved.
 - Budget numbers are rough offline estimates—not live store prices or current exchange rates.
 - Cuisine photos are presentation examples selected by broad region; they are not a generated photo of every exact recipe.
+- Imported recipes are seed/editorial data, not independently cook-tested. Their timing, quantities and heuristic allergen flags still need human review.
 - The dietary checker catches obvious conflicts only. It cannot certify that food is allergen-free or free of cross-contact.
 - Follow product labels and local food-safety guidance. Use a food thermometer for meat, poultry, seafood, eggs, and leftovers.
 
@@ -76,10 +94,16 @@ dist/
   styles.css              Responsive visual design
   recipe-data.js          Cuisines, flavors, tools, measurement rules, food glossary, interface messages
   recipe-engine.js        Recipe, budget, safety, and step generation
+  recipe-library-data.js  Deterministic 1,000-record imported library artifact
+  recipe-library.js       Search, visibility rules, unit-safe scaling, and app mapping
   app.js                  Browser UI and local recipe storage
   assets/                 Bundled finished-dish photographs
+reports/
+  recipe_import_report.md Import counts, provenance, limitations, and rollback notes
 tests/
   run-tests.js            Dependency-free unit and contract tests
+tools/
+  import-recipe-library.js  Validated, idempotent NDJSON import command
 START.bat                 One-click Windows launcher
 package.json              Test command and project metadata
 ```

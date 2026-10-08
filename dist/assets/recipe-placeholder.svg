@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720" role="img" aria-labelledby="title desc">
+  <title id="title">Recipe photo placeholder</title>
+  <desc id="desc">No licensed finished-dish photograph is available for this imported recipe.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#183f35"/>
+      <stop offset="1" stop-color="#e76f51"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="720" fill="url(#background)"/>
+  <circle cx="600" cy="330" r="190" fill="#fff8ea" opacity=".96"/>
+  <circle cx="600" cy="330" r="135" fill="none" stroke="#173f35" stroke-width="18" opacity=".2"/>
+  <path d="M478 329c44-67 201-69 244 0-35 91-209 91-244 0Z" fill="#efb366"/>
+  <path d="M514 308c45-36 128-39 175-3" fill="none" stroke="#fff8ea" stroke-linecap="round" stroke-width="14" opacity=".8"/>
+  <text x="600" y="585" text-anchor="middle" fill="#fff" font-family="system-ui, sans-serif" font-size="42" font-weight="700">成品圖片待提供 · Photo pending</text>
+  <text x="600" y="636" text-anchor="middle" fill="#fff" font-family="system-ui, sans-serif" font-size="25" opacity=".88">Upload your own licensed photo</text>
+</svg>

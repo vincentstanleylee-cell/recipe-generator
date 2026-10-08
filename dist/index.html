@@ -21,6 +21,9 @@
     </a>
     <div class="header-actions">
       <span class="offline-badge"><span aria-hidden="true">●</span> <span class="zh">離線可用</span><span class="en inline" lang="en">Works offline</span></span>
+      <button class="secondary-button" id="open-library" type="button">
+        <span class="zh">食譜庫</span><span class="en inline" lang="en">Recipe library</span> <span class="count-badge" id="library-count-badge">100</span>
+      </button>
       <button class="secondary-button" id="open-saved" type="button">
         <span class="zh">我的食譜</span><span class="en inline" lang="en">My recipes</span> <span class="count-badge" id="saved-count">0</span>
       </button>
@@ -174,7 +177,7 @@
           <img id="dish-photo" src="assets/dish-east-asian.png" alt="廣東風味成品擺盤示意相片 · Cantonese-style finished dish presentation photo">
           <div class="photo-shade"></div>
           <div class="photo-topline">
-            <span class="photo-label"><span class="zh">成品圖片 · 擺盤示意</span><span class="en" lang="en">Finished dish · plating example</span></span>
+            <span class="photo-label" id="photo-label"><span class="zh">成品圖片 · 擺盤示意</span><span class="en" lang="en">Finished dish · plating example</span></span>
             <label class="photo-upload" for="photo-upload"><span class="zh">換成實拍相</span><span class="en inline" lang="en">Use your own photo</span></label>
             <input id="photo-upload" type="file" accept="image/*" hidden>
           </div>
@@ -190,6 +193,11 @@
             <div class="meta-row" id="meta-row"></div>
           </div>
 
+          <div class="notice source-notice" id="source-notice" hidden>
+            <span aria-hidden="true">ⓘ</span>
+            <p></p>
+          </div>
+
           <div class="notice warning-notice" id="time-warning" hidden>
             <span aria-hidden="true">⏱</span>
             <p></p>
@@ -198,7 +206,7 @@
           <section class="recipe-section" aria-labelledby="ingredients-title">
             <div class="recipe-section-heading">
               <div>
-                <p class="section-kicker"><span class="zh">全部用克</span><span class="en inline" lang="en">All in grams</span></p>
+                <p class="section-kicker" id="measurement-label"><span class="zh">全部用克</span><span class="en inline" lang="en">All in grams</span></p>
                 <h3 id="ingredients-title"><span class="zh">材料份量</span><span class="en" lang="en">Ingredient amounts</span></h3>
               </div>
               <span class="soft-badge" id="serving-badge"><span class="zh">2 人份</span><span class="en inline" lang="en">2 servings</span></span>
@@ -303,6 +311,63 @@
     <p><span class="zh">離線規則式 MVP · 預算係粗略估算 · 嚴重食物敏感請向專業人士確認</span><span class="en" lang="en">Offline rules-based MVP · Budget figures are rough estimates · For serious food allergies, please check with a qualified professional</span></p>
   </footer>
 
+  <dialog id="library-dialog" class="library-dialog" aria-labelledby="library-title" aria-describedby="library-intro">
+    <div class="dialog-header">
+      <div>
+        <p class="section-kicker"><span class="zh">已匯入食譜</span><span class="en inline" lang="en">Imported recipes</span></p>
+        <h2 id="library-title"><span class="zh">食譜庫</span><span class="en" lang="en">Recipe library</span></h2>
+      </div>
+      <button class="icon-button" id="close-library" type="button" aria-label="關閉食譜庫 · Close recipe library">×</button>
+    </div>
+    <p id="library-intro" class="library-intro">
+      <span class="zh">預設顯示 100 款廣東菜編輯食譜；全部未經獨立試煮。搜尋會配對中英文名稱、材料、調味同口味。</span>
+      <span class="en" lang="en">The default view contains 100 Cantonese editorial recipes; none is independently cook-tested. Search matches bilingual titles, ingredients, seasonings and flavors.</span>
+    </p>
+    <div class="library-controls">
+      <label class="field library-search" for="library-search">
+        <span><span class="zh">搜尋食譜或材料</span><span class="en inline" lang="en">Search recipes or ingredients</span></span>
+        <input id="library-search" type="search" placeholder="豉油雞、chicken、韓式甜辣…">
+      </label>
+      <label class="field" for="library-cuisine">
+        <span><span class="zh">菜式地區</span><span class="en inline" lang="en">Cuisine</span></span>
+        <select id="library-cuisine">
+          <option value="all">全部 · All</option>
+        </select>
+      </label>
+      <label class="field" for="library-servings">
+        <span><span class="zh">開啟時份量</span><span class="en inline" lang="en">Servings when opened</span></span>
+        <select id="library-servings">
+          <option value="1">1 人 · 1 person</option>
+          <option value="2" selected>2 人 · 2 people</option>
+          <option value="3">3 人 · 3 people</option>
+          <option value="4">4 人 · 4 people</option>
+          <option value="5">5 人 · 5 people</option>
+          <option value="6">6 人 · 6 people</option>
+          <option value="custom">自訂份量 · Custom</option>
+        </select>
+      </label>
+      <label class="field library-custom-serving" id="library-custom-serving-wrap" for="library-custom-serving" hidden>
+        <span><span class="zh">自訂人數</span><span class="en inline" lang="en">Custom people</span></span>
+        <input id="library-custom-serving" type="number" min="1" max="30" value="8" inputmode="numeric">
+      </label>
+    </div>
+    <label class="demo-toggle" for="show-demo-recipes">
+      <input id="show-demo-recipes" type="checkbox">
+      <span>
+        <strong><span class="zh">顯示 900 款未核實示範食譜</span><span class="en inline" lang="en">Show 900 unverified demo recipes</span></strong>
+        <small><span class="zh">包括 100 款舊版及 800 款合成口味變化；只供探索，唔係已驗證食譜。</span><span class="en" lang="en">Includes 100 legacy records and 800 synthetic flavor variants; for exploration only, not verified recipes.</span></small>
+      </span>
+    </label>
+    <div class="library-summary">
+      <p id="library-result-count" role="status"></p>
+      <p><span class="zh">份量會按原食譜比例縮放，並保留克或毫升。</span><span class="en inline" lang="en">Amounts scale from the source serving size and keep g or ml.</span></p>
+    </div>
+    <div class="library-grid" id="library-grid"></div>
+    <div class="library-more-row">
+      <button class="secondary-button" id="library-load-more" type="button"><span class="zh">顯示更多</span><span class="en inline" lang="en">Show more</span></button>
+    </div>
+  </dialog>
+
   <dialog id="saved-dialog" aria-labelledby="saved-title">
     <div class="dialog-header">
       <div>
@@ -322,6 +387,8 @@
 
   <script src="recipe-data.js"></script>
   <script src="recipe-engine.js"></script>
+  <script src="recipe-library-data.js"></script>
+  <script src="recipe-library.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
